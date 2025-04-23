@@ -1,6 +1,14 @@
 <?php
-// quejas.php - Gestión de quejas
+/**
+ * Gestión de quejas - Sistema de Quejas
+ * Última modificación: 2025-04-23 04:16:31 UTC
+ * @author crisgacovi
+ */
+
 session_start();
+
+// Definir constante para acceso seguro al sidebar
+define('IN_ADMIN', true);
 
 // Verificar si el usuario está autenticado
 if (!isset($_SESSION['admin_loggedin']) || $_SESSION['admin_loggedin'] !== true) {
@@ -13,136 +21,109 @@ require_once "../config.php";
 
 // Función para verificar si el usuario es administrador
 function isAdmin() {
-    // Si no hay información sobre el rol en la sesión, asumir que no es admin
     if (!isset($_SESSION['admin_role'])) {
         return false;
     }
-    // Devolver true si el rol es 'admin'
     return $_SESSION['admin_role'] === 'admin';
 }
 
-// Parámetros de paginación
-$registrosPorPagina = 15;
-$paginaActual = isset($_GET['pagina']) ? (int)$_GET['pagina'] : 1;
-$offset = ($paginaActual - 1) * $registrosPorPagina;
+try {
+    // Parámetros de paginación
+    $registrosPorPagina = 15;
+    $paginaActual = isset($_GET['pagina']) ? max(1, (int)$_GET['pagina']) : 1;
+    $offset = ($paginaActual - 1) * $registrosPorPagina;
 
-// Filtros
-$filtro = isset($_GET['filtro']) ? $_GET['filtro'] : '';
-$estadoFiltro = isset($_GET['estado']) ? $_GET['estado'] : '';
-$epsFiltro = isset($_GET['eps_id']) ? (int)$_GET['eps_id'] : 0;
-$tipoQuejaFiltro = isset($_GET['tipo_queja_id']) ? (int)$_GET['tipo_queja_id'] : 0;
+    // Filtros
+    $filtro = trim($_GET['filtro'] ?? '');
+    $estadoFiltro = trim($_GET['estado'] ?? '');
+    $epsFiltro = (int)($_GET['eps_id'] ?? 0);
+    $tipoQuejaFiltro = (int)($_GET['tipo_queja_id'] ?? 0);
 
-// Construir consulta SQL con filtros
-$whereClauses = [];
-$params = [];
-$types = "";
+    // Construir consulta SQL con filtros
+    $whereClauses = [];
+    $params = [];
+    $types = "";
 
-if (!empty($filtro)) {
-    $whereClauses[] = "(q.nombre_paciente LIKE ? OR q.documento_identidad LIKE ? OR q.descripcion LIKE ?)";
-    $filtroParam = "%$filtro%";
-    $params[] = $filtroParam;
-    $params[] = $filtroParam;
-    $params[] = $filtroParam;
-    $types .= "sss";
-}
+    if (!empty($filtro)) {
+        $whereClauses[] = "(q.nombre_paciente LIKE ? OR q.documento_identidad LIKE ? OR q.descripcion LIKE ?)";
+        $filtroParam = "%$filtro%";
+        array_push($params, $filtroParam, $filtroParam, $filtroParam);
+        $types .= "sss";
+    }
 
-if (!empty($estadoFiltro)) {
-    $whereClauses[] = "q.estado = ?";
-    $params[] = $estadoFiltro;
-    $types .= "s";
-}
+    if (!empty($estadoFiltro)) {
+        $whereClauses[] = "q.estado = ?";
+        $params[] = $estadoFiltro;
+        $types .= "s";
+    }
 
-if ($epsFiltro > 0) {
-    $whereClauses[] = "q.eps_id = ?";
-    $params[] = $epsFiltro;
-    $types .= "i";
-}
+    if ($epsFiltro > 0) {
+        $whereClauses[] = "q.eps_id = ?";
+        $params[] = $epsFiltro;
+        $types .= "i";
+    }
 
-if ($tipoQuejaFiltro > 0) {
-    $whereClauses[] = "q.tipo_queja_id = ?";
-    $params[] = $tipoQuejaFiltro;
-    $types .= "i";
-}
+    if ($tipoQuejaFiltro > 0) {
+        $whereClauses[] = "q.tipo_queja_id = ?";
+        $params[] = $tipoQuejaFiltro;
+        $types .= "i";
+    }
 
-$whereSQL = "";
-if (!empty($whereClauses)) {
-    $whereSQL = "WHERE " . implode(" AND ", $whereClauses);
-}
+    $whereSQL = !empty($whereClauses) ? "WHERE " . implode(" AND ", $whereClauses) : "";
 
-// Consulta para obtener quejas con paginación
-$sql = "SELECT q.id, q.nombre_paciente, q.documento_identidad, q.email, 
-        c.nombre as ciudad, e.nombre as eps, t.nombre as tipo_queja,
-        q.descripcion, q.fecha_creacion, q.estado
-        FROM quejas q
-        JOIN ciudades c ON q.ciudad_id = c.id
-        JOIN eps e ON q.eps_id = e.id
-        JOIN tipos_queja t ON q.tipo_queja_id = t.id
-        $whereSQL
-        ORDER BY q.fecha_creacion DESC
-        LIMIT ?, ?";
+    // Consulta principal con JOINs
+    $sql = "SELECT q.*, c.nombre as ciudad, e.nombre as eps, t.nombre as tipo_queja
+            FROM quejas q
+            LEFT JOIN ciudades c ON q.ciudad_id = c.id
+            LEFT JOIN eps e ON q.eps_id = e.id
+            LEFT JOIN tipos_queja t ON q.tipo_queja_id = t.id
+            $whereSQL
+            ORDER BY q.fecha_creacion DESC
+            LIMIT ?, ?";
 
-// Preparar y ejecutar la consulta
-$stmt = $conn->prepare($sql);
-if ($stmt) {
+    // Preparar y ejecutar consulta principal
+    $stmt = $conn->prepare($sql);
+    if (!$stmt) {
+        throw new Exception("Error en la preparación de la consulta: " . $conn->error);
+    }
+
     // Agregar parámetros de paginación
     $params[] = $offset;
     $params[] = $registrosPorPagina;
     $types .= "ii";
     
-    if ($params) {
-        $stmt->bind_param($types, ...$params);
-    }
+    $stmt->bind_param($types, ...$params);
     $stmt->execute();
     $result = $stmt->get_result();
-} else {
-    // Manejar error en la preparación de la consulta
-    $error = $conn->error;
-    $result = null;
-}
 
-// Consulta para contar el total de registros (para la paginación)
-$sqlCount = "SELECT COUNT(*) as total FROM quejas q $whereSQL";
-$totalRegistros = 0;
+    // Consulta para el total de registros
+    $sqlCount = "SELECT COUNT(*) as total FROM quejas q $whereSQL";
+    $stmtCount = $conn->prepare($sqlCount);
+    
+    if (!$stmtCount) {
+        throw new Exception("Error en la consulta de conteo: " . $conn->error);
+    }
 
-$stmtCount = $conn->prepare($sqlCount);
-if ($stmtCount) {
-    if ($params) {
-        // Quitar los dos últimos parámetros (offset y limit)
-        array_pop($params);
-        array_pop($params);
+    // Quitar parámetros de paginación para el conteo
+    if (!empty($params)) {
+        array_pop($params); // remove limit
+        array_pop($params); // remove offset
         $typesCount = substr($types, 0, -2);
-        if (!empty($typesCount) && !empty($params)) {
+        if (!empty($params)) {
             $stmtCount->bind_param($typesCount, ...$params);
         }
     }
+    
     $stmtCount->execute();
-    $resultCount = $stmtCount->get_result();
-    if ($rowCount = $resultCount->fetch_assoc()) {
-        $totalRegistros = $rowCount['total'];
-    }
-}
+    $totalRegistros = $stmtCount->get_result()->fetch_assoc()['total'];
+    $totalPaginas = ceil($totalRegistros / $registrosPorPagina);
 
-// Calcular total de páginas
-$totalPaginas = ceil($totalRegistros / $registrosPorPagina);
+    // Obtener listas para filtros
+    $eps_list = $conn->query("SELECT id, nombre FROM eps ORDER BY nombre")->fetch_all(MYSQLI_ASSOC);
+    $tipos_queja_list = $conn->query("SELECT id, nombre FROM tipos_queja ORDER BY nombre")->fetch_all(MYSQLI_ASSOC);
 
-// Obtener lista de EPS para el filtro
-$eps_list = [];
-$sql_eps = "SELECT id, nombre FROM eps ORDER BY nombre";
-$result_eps = $conn->query($sql_eps);
-if ($result_eps) {
-    while ($row = $result_eps->fetch_assoc()) {
-        $eps_list[] = $row;
-    }
-}
-
-// Obtener lista de tipos de queja para el filtro
-$tipos_queja_list = [];
-$sql_tipos = "SELECT id, nombre FROM tipos_queja ORDER BY nombre";
-$result_tipos = $conn->query($sql_tipos);
-if ($result_tipos) {
-    while ($row = $result_tipos->fetch_assoc()) {
-        $tipos_queja_list[] = $row;
-    }
+} catch (Exception $e) {
+    $error = $e->getMessage();
 }
 ?>
 
@@ -153,82 +134,49 @@ if ($result_tipos) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gestión de Quejas - Sistema de Quejas</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.3/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.1/font/bootstrap-icons.css">
     <link rel="stylesheet" href="../css/admin-styles.css">
+    <style>
+        .table td { vertical-align: middle; }
+        .badge { font-size: 0.9em; }
+        .btn-group .btn { margin-right: 2px; }
+        .filters .form-control, .filters .form-select {
+            border-radius: 0.375rem;
+        }
+        .table-hover tbody tr:hover {
+            background-color: rgba(0,0,0,.075);
+        }
+        .modal-confirm .modal-content {
+            padding: 20px;
+            border-radius: 5px;
+            border: none;
+        }
+        .btn-outline-danger:hover {
+            color: #fff;
+            background-color: #dc3545;
+            border-color: #dc3545;
+        }
+        .loading {
+            position: relative;
+            pointer-events: none;
+        }
+        .loading:after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255,255,255,0.8);
+            z-index: 1;
+        }
+    </style>
 </head>
 <body>
     <div class="container-fluid">
         <div class="row">
             <!-- Sidebar -->
-            <nav id="sidebar" class="col-md-3 col-lg-2 d-md-block bg-dark sidebar collapse">
-                <div class="position-sticky pt-3">
-                    <div class="text-center mb-4">
-                        <h5 class="text-white">HealthComplaints</h5>
-                        <p class="text-white-50">Panel de Administración</p>
-                    </div>
-                    <ul class="nav flex-column">
-                        <li class="nav-item">
-                            <a class="nav-link" href="index.php">
-                                <i class="bi bi-house-door me-2"></i>
-                                Dashboard
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link active" href="quejas.php">
-                                <i class="bi bi-exclamation-triangle me-2"></i>
-                                Gestión de Quejas
-                            </a>
-                        </li>
-                        <?php if (isAdmin()): ?>
-                        <li class="nav-item">
-                            <a class="nav-link" href="eps.php">
-                                <i class="bi bi-building me-2"></i>
-                                Gestión de EPS
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="ciudades.php">
-                                <i class="bi bi-geo-alt me-2"></i>
-                                Gestión de Ciudades
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="tipos_queja.php">
-                                <i class="bi bi-tags me-2"></i>
-                                Tipos de Queja
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="usuarios.php">
-                                <i class="bi bi-people me-2"></i>
-                                Usuarios
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="reportes.php">
-                                <i class="bi bi-graph-up me-2"></i>
-                                Reportes
-                            </a>
-                        </li>
-                        <?php endif; ?>
-                    </ul>
-                    <hr class="text-white-50">
-                    <ul class="nav flex-column">
-                        <li class="nav-item">
-                            <a class="nav-link" href="perfil.php">
-                                <i class="bi bi-person me-2"></i>
-                                Perfil
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="logout.php">
-                                <i class="bi bi-box-arrow-right me-2"></i>
-                                Cerrar Sesión
-                            </a>
-                        </li>
-                    </ul>
-                </div>
-            </nav>
+            <?php include 'includes/sidebar.php'; ?>
 
             <!-- Main Content -->
             <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
@@ -236,6 +184,9 @@ if ($result_tipos) {
                     <h1 class="h2">Gestión de Quejas</h1>
                     <div class="btn-toolbar mb-2 mb-md-0">
                         <div class="btn-group me-2">
+                            <button type="button" class="btn btn-sm btn-outline-secondary" id="btnExportar">
+                                <i class="bi bi-download"></i> Exportar
+                            </button>
                             <a href="../index.php" class="btn btn-sm btn-outline-primary" target="_blank">
                                 <i class="bi bi-eye"></i> Ver Sitio
                             </a>
@@ -243,30 +194,36 @@ if ($result_tipos) {
                     </div>
                 </div>
 
-                <!-- Buscador y filtros avanzados -->
+                <!-- Filtros -->
                 <div class="card mb-4">
                     <div class="card-header bg-light">
-                        <h5 class="mb-0">Filtrar Quejas</h5>
+                        <h5 class="card-title mb-0">Filtrar Quejas</h5>
                     </div>
                     <div class="card-body">
-                        <form action="quejas.php" method="get" class="row g-3">
+                        <form action="quejas.php" method="get" class="row g-3" id="filtrosForm">
                             <div class="col-md-3">
-                                <input type="text" class="form-control" name="filtro" placeholder="Buscar por nombre, documento o descripción" value="<?php echo htmlspecialchars($filtro); ?>">
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="bi bi-search"></i></span>
+                                    <input type="text" class="form-control" name="filtro" 
+                                           placeholder="Buscar..." 
+                                           value="<?php echo htmlspecialchars($filtro); ?>">
+                                </div>
                             </div>
                             <div class="col-md-2">
                                 <select name="estado" class="form-select">
                                     <option value="">Todos los estados</option>
-                                    <option value="Pendiente" <?php echo $estadoFiltro === 'Pendiente' ? 'selected' : ''; ?>>Pendiente</option>
-                                    <option value="En revisión" <?php echo $estadoFiltro === 'En revisión' ? 'selected' : ''; ?>>En revisión</option>
-                                    <option value="Resuelto" <?php echo $estadoFiltro === 'Resuelto' ? 'selected' : ''; ?>>Resuelto</option>
-                                    <option value="Rechazado" <?php echo $estadoFiltro === 'Rechazado' ? 'selected' : ''; ?>>Rechazado</option>
+                                    <option value="pendiente" <?php echo $estadoFiltro === 'pendiente' ? 'selected' : ''; ?>>Pendiente</option>
+                                    <option value="en_proceso" <?php echo $estadoFiltro === 'en_proceso' ? 'selected' : ''; ?>>En Proceso</option>
+                                    <option value="resuelto" <?php echo $estadoFiltro === 'resuelto' ? 'selected' : ''; ?>>Resuelto</option>
+                                    <option value="cerrado" <?php echo $estadoFiltro === 'cerrado' ? 'selected' : ''; ?>>Cerrado</option>
                                 </select>
                             </div>
                             <div class="col-md-2">
                                 <select name="eps_id" class="form-select">
                                     <option value="">Todas las EPS</option>
                                     <?php foreach ($eps_list as $eps): ?>
-                                        <option value="<?php echo $eps['id']; ?>" <?php echo $epsFiltro == $eps['id'] ? 'selected' : ''; ?>>
+                                        <option value="<?php echo $eps['id']; ?>" 
+                                                <?php echo $epsFiltro == $eps['id'] ? 'selected' : ''; ?>>
                                             <?php echo htmlspecialchars($eps['nombre']); ?>
                                         </option>
                                     <?php endforeach; ?>
@@ -276,7 +233,8 @@ if ($result_tipos) {
                                 <select name="tipo_queja_id" class="form-select">
                                     <option value="">Todos los tipos</option>
                                     <?php foreach ($tipos_queja_list as $tipo): ?>
-                                        <option value="<?php echo $tipo['id']; ?>" <?php echo $tipoQuejaFiltro == $tipo['id'] ? 'selected' : ''; ?>>
+                                        <option value="<?php echo $tipo['id']; ?>" 
+                                                <?php echo $tipoQuejaFiltro == $tipo['id'] ? 'selected' : ''; ?>>
                                             <?php echo htmlspecialchars($tipo['nombre']); ?>
                                         </option>
                                     <?php endforeach; ?>
@@ -287,7 +245,7 @@ if ($result_tipos) {
                                     <i class="bi bi-search"></i> Buscar
                                 </button>
                                 <a href="quejas.php" class="btn btn-secondary">
-                                    <i class="bi bi-arrow-repeat"></i> Limpiar
+                                    <i class="bi bi-arrow-counterclockwise"></i> Limpiar
                                 </a>
                             </div>
                         </form>
@@ -295,19 +253,19 @@ if ($result_tipos) {
                 </div>
 
                 <!-- Tabla de quejas -->
-                <div class="card mb-4">
+                <div class="card">
                     <div class="card-header d-flex justify-content-between align-items-center bg-white">
                         <h5 class="mb-0">Lista de Quejas</h5>
-                        <span class="badge bg-primary"><?php echo $totalRegistros; ?> registros encontrados</span>
+                        <span class="badge bg-primary"><?php echo number_format($totalRegistros); ?> registros</span>
                     </div>
                     <div class="card-body">
                         <?php if (isset($error)): ?>
-                            <div class="alert alert-danger">
-                                Error en la consulta: <?php echo htmlspecialchars($error); ?>
+                            <div class="alert alert-danger" role="alert">
+                                <i class="bi bi-exclamation-triangle-fill"></i> <?php echo htmlspecialchars($error); ?>
                             </div>
                         <?php else: ?>
                             <div class="table-responsive">
-                                <table class="table table-bordered table-hover">
+                                <table class="table table-hover" id="quejasTable">
                                     <thead class="table-light">
                                         <tr>
                                             <th>ID</th>
@@ -321,57 +279,77 @@ if ($result_tipos) {
                                     </thead>
                                     <tbody>
                                         <?php if ($result && $result->num_rows > 0): ?>
-                                            <?php while ($row = $result->fetch_assoc()): ?>
+                                            <?php while ($row = $result->fetch_assoc()): 
+                                                // Determinar la clase del badge según el estado
+                                                $estado = strtolower($row['estado']);
+                                                $badgeClass = 'bg-primary'; // valor por defecto
+                                                switch ($estado) {
+                                                    case 'pendiente':
+                                                        $badgeClass = 'bg-warning';
+                                                        break;
+                                                    case 'en_proceso':
+                                                        $badgeClass = 'bg-info';
+                                                        break;
+                                                    case 'resuelto':
+                                                        $badgeClass = 'bg-success';
+                                                        break;
+                                                    case 'cerrado':
+                                                        $badgeClass = 'bg-secondary';
+                                                        break;
+                                                }
+                                            ?>
                                                 <tr>
                                                     <td><?php echo $row['id']; ?></td>
                                                     <td>
                                                         <strong><?php echo htmlspecialchars($row['nombre_paciente']); ?></strong><br>
-                                                        <small><?php echo htmlspecialchars($row['documento_identidad']); ?></small>
+                                                        <small class="text-muted"><?php echo htmlspecialchars($row['documento_identidad']); ?></small>
                                                     </td>
                                                     <td>
                                                         <?php echo htmlspecialchars($row['ciudad']); ?><br>
-                                                        <small><?php echo htmlspecialchars($row['eps']); ?></small>
+                                                        <small class="text-muted"><?php echo htmlspecialchars($row['eps']); ?></small>
                                                     </td>
                                                     <td><?php echo htmlspecialchars($row['tipo_queja']); ?></td>
                                                     <td><?php echo date('d/m/Y H:i', strtotime($row['fecha_creacion'])); ?></td>
                                                     <td>
-                                                        <?php 
-                                                        $badgeClass = '';
-                                                        switch ($row['estado']) {
-                                                            case 'Pendiente':
-                                                                $badgeClass = 'bg-warning';
-                                                                break;
-                                                            case 'En revisión':
-                                                                $badgeClass = 'bg-primary';
-                                                                break;
-                                                            case 'Resuelto':
-                                                                $badgeClass = 'bg-success';
-                                                                break;
-                                                            case 'Rechazado':
-                                                                $badgeClass = 'bg-danger';
-                                                                break;
-                                                        }
-                                                        ?>
-                                                        <span class="badge <?php echo $badgeClass; ?>"><?php echo $row['estado']; ?></span>
+                                                        <span class="badge <?php echo $badgeClass; ?>">
+                                                            <?php echo ucfirst($row['estado']); ?>
+                                                        </span>
                                                     </td>
                                                     <td>
-                                                        <a href="ver_queja.php?id=<?php echo $row['id']; ?>" class="btn btn-sm btn-info">
-                                                            <i class="bi bi-eye"></i>
-                                                        </a>
-                                                        <a href="editar_queja.php?id=<?php echo $row['id']; ?>" class="btn btn-sm btn-primary">
-                                                            <i class="bi bi-pencil"></i>
-                                                        </a>
-                                                        <button type="button" class="btn btn-sm btn-danger" 
-                                                                data-bs-toggle="modal" data-bs-target="#deleteModal" 
-                                                                data-id="<?php echo $row['id']; ?>">
-                                                            <i class="bi bi-trash"></i>
-                                                        </button>
+                                                        <div class="btn-group">
+                                                            <a href="ver_queja.php?id=<?php echo $row['id']; ?>" 
+                                                               class="btn btn-sm btn-info" 
+                                                               data-bs-toggle="tooltip" 
+                                                               title="Ver detalles">
+                                                                <i class="bi bi-eye"></i>
+                                                            </a>
+                                                            <a href="editar_queja.php?id=<?php echo $row['id']; ?>" 
+                                                               class="btn btn-sm btn-primary"
+                                                               data-bs-toggle="tooltip" 
+                                                               title="Editar">
+                                                                <i class="bi bi-pencil"></i>
+                                                            </a>
+                                                            <?php if (isAdmin()): ?>
+                                                                <button type="button" 
+                                                                        class="btn btn-sm btn-danger"
+                                                                        data-bs-toggle="modal" 
+                                                                        data-bs-target="#deleteModal"
+                                                                        data-id="<?php echo $row['id']; ?>"
+                                                                        data-paciente="<?php echo htmlspecialchars($row['nombre_paciente']); ?>"
+                                                                        title="Eliminar">
+                                                                    <i class="bi bi-trash"></i>
+                                                                </button>
+                                                            <?php endif; ?>
+                                                        </div>
                                                     </td>
                                                 </tr>
                                             <?php endwhile; ?>
                                         <?php else: ?>
                                             <tr>
-                                                <td colspan="7" class="text-center">No se encontraron quejas con los criterios seleccionados.</td>
+                                                <td colspan="7" class="text-center py-4">
+                                                    <i class="bi bi-inbox h4 d-block"></i>
+                                                    No se encontraron quejas con los criterios seleccionados.
+                                                </td>
                                             </tr>
                                         <?php endif; ?>
                                     </tbody>
@@ -380,45 +358,49 @@ if ($result_tipos) {
 
                             <!-- Paginación -->
                             <?php if ($totalPaginas > 1): ?>
-                                <nav aria-label="Page navigation">
+                                <nav aria-label="Navegación de páginas" class="mt-4">
                                     <ul class="pagination justify-content-center">
-                                        <?php if ($paginaActual > 1): ?>
-                                            <li class="page-item">
-                                                <a class="page-link" href="?pagina=1<?php echo (!empty($filtro) ? '&filtro=' . urlencode($filtro) : '') . (!empty($estadoFiltro) ? '&estado=' . urlencode($estadoFiltro) : '') . ($epsFiltro > 0 ? '&eps_id=' . $epsFiltro : '') . ($tipoQuejaFiltro > 0 ? '&tipo_queja_id=' . $tipoQuejaFiltro : ''); ?>">
-                                                    &laquo;
-                                                </a>
-                                            </li>
-                                        <?php else: ?>
-                                            <li class="page-item disabled">
-                                                <span class="page-link">&laquo;</span>
-                                            </li>
-                                        <?php endif; ?>
+                                        <li class="page-item <?php echo $paginaActual <= 1 ? 'disabled' : ''; ?>">
+                                            <a class="page-link" href="?pagina=1<?php echo !empty($_GET) ? '&' . http_build_query(array_filter([
+                                                'filtro' => $filtro,
+                                                'estado' => $estadoFiltro,
+                                                'eps_id' => $epsFiltro,
+                                                'tipo_queja_id' => $tipoQuejaFiltro
+                                            ])) : ''; ?>">
+                                                <i class="bi bi-chevron-double-left"></i>
+                                            </a>
+                                        </li>
                                         
                                         <?php
-                                        // Mostrar 5 páginas alrededor de la página actual
                                         $startPage = max(1, $paginaActual - 2);
                                         $endPage = min($totalPaginas, $paginaActual + 2);
                                         
                                         for ($i = $startPage; $i <= $endPage; $i++):
+                                            $queryParams = array_filter([
+                                                'pagina' => $i,
+                                                'filtro' => $filtro,
+                                                'estado' => $estadoFiltro,
+                                                'eps_id' => $epsFiltro,
+                                                'tipo_queja_id' => $tipoQuejaFiltro
+                                            ]);
                                         ?>
                                             <li class="page-item <?php echo ($i == $paginaActual) ? 'active' : ''; ?>">
-                                                <a class="page-link" href="?pagina=<?php echo $i; ?><?php echo (!empty($filtro) ? '&filtro=' . urlencode($filtro) : '') . (!empty($estadoFiltro) ? '&estado=' . urlencode($estadoFiltro) : '') . ($epsFiltro > 0 ? '&eps_id=' . $epsFiltro : '') . ($tipoQuejaFiltro > 0 ? '&tipo_queja_id=' . $tipoQuejaFiltro : ''); ?>">
+                                                <a class="page-link" href="?<?php echo http_build_query($queryParams); ?>">
                                                     <?php echo $i; ?>
                                                 </a>
                                             </li>
                                         <?php endfor; ?>
                                         
-                                        <?php if ($paginaActual < $totalPaginas): ?>
-                                            <li class="page-item">
-                                                <a class="page-link" href="?pagina=<?php echo $totalPaginas; ?><?php echo (!empty($filtro) ? '&filtro=' . urlencode($filtro) : '') . (!empty($estadoFiltro) ? '&estado=' . urlencode($estadoFiltro) : '') . ($epsFiltro > 0 ? '&eps_id=' . $epsFiltro : '') . ($tipoQuejaFiltro > 0 ? '&tipo_queja_id=' . $tipoQuejaFiltro : ''); ?>">
-                                                    &raquo;
-                                                </a>
-                                            </li>
-                                        <?php else: ?>
-                                            <li class="page-item disabled">
-                                                <span class="page-link">&raquo;</span>
-                                            </li>
-                                        <?php endif; ?>
+                                        <li class="page-item <?php echo $paginaActual >= $totalPaginas ? 'disabled' : ''; ?>">
+                                            <a class="page-link" href="?pagina=<?php echo $totalPaginas; ?><?php echo !empty($_GET) ? '&' . http_build_query(array_filter([
+                                                'filtro' => $filtro,
+                                                'estado' => $estadoFiltro,
+                                                'eps_id' => $epsFiltro,
+                                                'tipo_queja_id' => $tipoQuejaFiltro
+                                            ])) : ''; ?>">
+                                                <i class="bi bi-chevron-double-right"></i>
+                                            </a>
+                                        </li>
                                     </ul>
                                 </nav>
                             <?php endif; ?>
@@ -431,20 +413,27 @@ if ($result_tipos) {
 
     <!-- Modal de confirmación para eliminar -->
     <div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
-        <div class="modal-dialog">
+        <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="deleteModalLabel">Confirmar eliminación</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title" id="deleteModalLabel">
+                        <i class="bi bi-exclamation-triangle-fill"></i> Confirmar eliminación
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    ¿Está seguro de que desea eliminar esta queja? Esta acción no se puede deshacer.
+                    <p>¿Está seguro de que desea eliminar la queja de <strong id="pacienteName"></strong>?</p>
+                    <p class="text-danger mb-0"><small><i class="bi bi-exclamation-circle"></i> Esta acción no se puede deshacer.</small></p>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <form id="deleteForm" action="eliminar_queja.php" method="POST">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="bi bi-x"></i> Cancelar
+                    </button>
+                    <form id="deleteForm" action="eliminar_queja.php" method="POST" class="d-inline">
                         <input type="hidden" name="id" id="deleteId">
-                        <button type="submit" class="btn btn-danger">Eliminar</button>
+                        <button type="submit" class="btn btn-danger" id="btnConfirmDelete">
+                            <i class="bi bi-trash"></i> Eliminar
+                        </button>
                     </form>
                 </div>
             </div>
@@ -452,19 +441,53 @@ if ($result_tipos) {
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
     <script>
-        // Script para manejar modal de eliminación
-        document.addEventListener('DOMContentLoaded', function() {
-            const deleteModal = document.getElementById('deleteModal');
-            if (deleteModal) {
-                deleteModal.addEventListener('show.bs.modal', function(event) {
-                    const button = event.relatedTarget;
-                    const id = button.getAttribute('data-id');
-                    const deleteIdInput = document.getElementById('deleteId');
-                    deleteIdInput.value = id;
-                });
+    document.addEventListener('DOMContentLoaded', function() {
+        // Inicializar tooltips
+        const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl);
+        });
+
+        // Manejar modal de eliminación
+        const deleteModal = document.getElementById('deleteModal');
+        if (deleteModal) {
+            deleteModal.addEventListener('show.bs.modal', function(event) {
+                const button = event.relatedTarget;
+                const id = button.getAttribute('data-id');
+                const paciente = button.getAttribute('data-paciente');
+                
+                document.getElementById('deleteId').value = id;
+                document.getElementById('pacienteName').textContent = paciente;
+            });
+        }
+
+        // Manejar formulario de eliminación
+        const deleteForm = document.getElementById('deleteForm');
+        if (deleteForm) {
+            deleteForm.addEventListener('submit', function(e) {
+                const btnConfirmDelete = document.getElementById('btnConfirmDelete');
+                btnConfirmDelete.disabled = true;
+                btnConfirmDelete.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Eliminando...';
+            });
+        }
+
+        // Exportar a Excel
+        document.getElementById('btnExportar').addEventListener('click', function() {
+            const table = document.getElementById('quejasTable');
+            const wb = XLSX.utils.table_to_book(table, {sheet: "Quejas"});
+            XLSX.writeFile(wb, 'quejas_' + new Date().toISOString().slice(0,10) + '.xlsx');
+        });
+
+        // Activar búsqueda al presionar Enter en el campo de búsqueda
+        document.querySelector('input[name="filtro"]').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                document.getElementById('filtrosForm').submit();
             }
         });
+    });
     </script>
 </body>
 </html>
