@@ -1,7 +1,7 @@
 <?php
 /**
  * Gestión de quejas - Sistema de Quejas
- * Última modificación: 2025-04-23 04:16:31 UTC
+ * Última modificación: 2025-04-23 05:03:50 UTC
  * @author crisgacovi
  */
 
@@ -93,7 +93,9 @@ try {
     $types .= "ii";
     
     $stmt->bind_param($types, ...$params);
-    $stmt->execute();
+    if (!$stmt->execute()) {
+        throw new Exception("Error al ejecutar la consulta: " . $stmt->error);
+    }
     $result = $stmt->get_result();
 
     // Consulta para el total de registros
@@ -137,10 +139,22 @@ try {
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.1/font/bootstrap-icons.css">
     <link rel="stylesheet" href="../css/admin-styles.css">
     <style>
-        .table td { vertical-align: middle; }
-        .badge { font-size: 0.9em; }
-        .btn-group .btn { margin-right: 2px; }
-        .filters .form-control, .filters .form-select {
+        .table td { 
+            vertical-align: middle; 
+        }
+        .table th {
+            background-color: #f8f9fa;
+            font-weight: 600;
+        }
+        .badge { 
+            font-size: 0.9em;
+            padding: 0.4em 0.6em;
+        }
+        .btn-group .btn { 
+            margin-right: 2px; 
+        }
+        .filters .form-control, 
+        .filters .form-select {
             border-radius: 0.375rem;
         }
         .table-hover tbody tr:hover {
@@ -170,6 +184,23 @@ try {
             background: rgba(255,255,255,0.8);
             z-index: 1;
         }
+        .tooltip {
+            font-size: 0.85rem;
+        }
+        .card-header {
+            background-color: #fff;
+            border-bottom: 1px solid rgba(0,0,0,.125);
+        }
+        .display-4 {
+            font-size: 2.5rem;
+            font-weight: 300;
+        }
+        .text-truncate-2 {
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
     </style>
 </head>
 <body>
@@ -185,7 +216,7 @@ try {
                     <div class="btn-toolbar mb-2 mb-md-0">
                         <div class="btn-group me-2">
                             <button type="button" class="btn btn-sm btn-outline-secondary" id="btnExportar">
-                                <i class="bi bi-download"></i> Exportar
+                                <i class="bi bi-file-earmark-excel"></i> Exportar
                             </button>
                             <a href="../index.php" class="btn btn-sm btn-outline-primary" target="_blank">
                                 <i class="bi bi-eye"></i> Ver Sitio
@@ -254,9 +285,16 @@ try {
 
                 <!-- Tabla de quejas -->
                 <div class="card">
-                    <div class="card-header d-flex justify-content-between align-items-center bg-white">
+                    <div class="card-header d-flex justify-content-between align-items-center">
                         <h5 class="mb-0">Lista de Quejas</h5>
-                        <span class="badge bg-primary"><?php echo number_format($totalRegistros); ?> registros</span>
+                        <div class="d-flex align-items-center">
+                            <span class="badge bg-primary me-2"><?php echo number_format($totalRegistros); ?> registros</span>
+                            <div class="btn-group">
+                                <button type="button" class="btn btn-sm btn-outline-secondary" id="btnExportar">
+                                    <i class="bi bi-file-earmark-excel"></i> Exportar
+                                </button>
+                            </div>
+                        </div>
                     </div>
                     <div class="card-body">
                         <?php if (isset($error)): ?>
@@ -265,16 +303,17 @@ try {
                             </div>
                         <?php else: ?>
                             <div class="table-responsive">
-                                <table class="table table-hover" id="quejasTable">
+                                <table class="table table-hover align-middle" id="quejasTable">
                                     <thead class="table-light">
                                         <tr>
-                                            <th>ID</th>
-                                            <th>Paciente</th>
-                                            <th>Ciudad / EPS</th>
-                                            <th>Tipo</th>
-                                            <th>Fecha</th>
-                                            <th>Estado</th>
-                                            <th>Acciones</th>
+                                            <th scope="col">ID</th>
+                                            <th scope="col">Paciente</th>
+                                            <th scope="col">Ciudad / EPS</th>
+                                            <th scope="col">Tipo</th>
+                                            <th scope="col">Fecha</th>
+                                            <th scope="col">Estado</th>
+                                            <th scope="col">Archivo</th>
+                                            <th scope="col">Acciones</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -301,19 +340,72 @@ try {
                                                 <tr>
                                                     <td><?php echo $row['id']; ?></td>
                                                     <td>
-                                                        <strong><?php echo htmlspecialchars($row['nombre_paciente']); ?></strong><br>
-                                                        <small class="text-muted"><?php echo htmlspecialchars($row['documento_identidad']); ?></small>
+                                                        <div>
+                                                            <strong><?php echo htmlspecialchars($row['nombre_paciente']); ?></strong>
+                                                            <br>
+                                                            <small class="text-muted">
+                                                                <i class="bi bi-person-badge"></i> 
+                                                                <?php echo htmlspecialchars($row['documento_identidad']); ?>
+                                                            </small>
+                                                            <br>
+                                                            <small class="text-muted">
+                                                                <i class="bi bi-envelope"></i> 
+                                                                <?php echo htmlspecialchars($row['email']); ?>
+                                                            </small>
+                                                        </div>
                                                     </td>
                                                     <td>
-                                                        <?php echo htmlspecialchars($row['ciudad']); ?><br>
-                                                        <small class="text-muted"><?php echo htmlspecialchars($row['eps']); ?></small>
+                                                        <div>
+                                                            <i class="bi bi-geo-alt text-primary"></i> 
+                                                            <?php echo htmlspecialchars($row['ciudad']); ?>
+                                                            <br>
+                                                            <small class="text-muted">
+                                                                <i class="bi bi-building"></i> 
+                                                                <?php echo htmlspecialchars($row['eps']); ?>
+                                                            </small>
+                                                        </div>
                                                     </td>
-                                                    <td><?php echo htmlspecialchars($row['tipo_queja']); ?></td>
-                                                    <td><?php echo date('d/m/Y H:i', strtotime($row['fecha_creacion'])); ?></td>
+                                                    <td>
+                                                        <span class="badge bg-info">
+                                                            <?php echo htmlspecialchars($row['tipo_queja']); ?>
+                                                        </span>
+                                                    </td>
+                                                    <td>
+                                                        <div>
+                                                            <i class="bi bi-calendar-event"></i>
+                                                            <?php echo date('d/m/Y', strtotime($row['fecha_creacion'])); ?>
+                                                            <br>
+                                                            <small class="text-muted">
+                                                                <i class="bi bi-clock"></i>
+                                                                <?php echo date('H:i', strtotime($row['fecha_creacion'])); ?>
+                                                            </small>
+                                                        </div>
+                                                    </td>
                                                     <td>
                                                         <span class="badge <?php echo $badgeClass; ?>">
+                                                            <i class="bi bi-circle-fill me-1"></i>
                                                             <?php echo ucfirst($row['estado']); ?>
                                                         </span>
+                                                    </td>
+                                                    <td>
+                                                        <?php if (!empty($row['archivo_adjunto'])): ?>
+                                                            <?php
+                                                            $extension = strtolower(pathinfo($row['archivo_adjunto'], PATHINFO_EXTENSION));
+                                                            $icon_class = $extension === 'pdf' ? 'bi-file-pdf' : 'bi-file-image';
+                                                            ?>
+                                                            <a href="../<?php echo htmlspecialchars($row['archivo_adjunto']); ?>" 
+                                                               class="btn btn-sm btn-outline-primary" 
+                                                               target="_blank"
+                                                               data-bs-toggle="tooltip" 
+                                                               title="Ver archivo">
+                                                                <i class="bi <?php echo $icon_class; ?>"></i>
+                                                            </a>
+                                                        <?php else: ?>
+                                                            <span class="text-muted">
+                                                                <i class="bi bi-file-earmark-x"></i>
+                                                                Sin archivo
+                                                            </span>
+                                                        <?php endif; ?>
                                                     </td>
                                                     <td>
                                                         <div class="btn-group">
@@ -346,9 +438,11 @@ try {
                                             <?php endwhile; ?>
                                         <?php else: ?>
                                             <tr>
-                                                <td colspan="7" class="text-center py-4">
-                                                    <i class="bi bi-inbox h4 d-block"></i>
-                                                    No se encontraron quejas con los criterios seleccionados.
+                                                <td colspan="8" class="text-center py-4">
+                                                    <div class="text-muted">
+                                                        <i class="bi bi-inbox display-4 d-block mb-3"></i>
+                                                        <p>No se encontraron quejas con los criterios seleccionados.</p>
+                                                    </div>
                                                 </td>
                                             </tr>
                                         <?php endif; ?>
@@ -474,18 +568,39 @@ try {
         }
 
         // Exportar a Excel
-        document.getElementById('btnExportar').addEventListener('click', function() {
-            const table = document.getElementById('quejasTable');
-            const wb = XLSX.utils.table_to_book(table, {sheet: "Quejas"});
-            XLSX.writeFile(wb, 'quejas_' + new Date().toISOString().slice(0,10) + '.xlsx');
-        });
+        const btnExportar = document.getElementById('btnExportar');
+        if (btnExportar) {
+            btnExportar.addEventListener('click', function() {
+                const table = document.getElementById('quejasTable');
+                const wb = XLSX.utils.table_to_book(table, {
+                    sheet: "Quejas",
+                    raw: true
+                });
+                const fileName = 'quejas_' + new Date().toISOString().split('T')[0] + '.xlsx';
+                XLSX.writeFile(wb, fileName);
+            });
+        }
 
         // Activar búsqueda al presionar Enter en el campo de búsqueda
-        document.querySelector('input[name="filtro"]').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                document.getElementById('filtrosForm').submit();
-            }
+        const inputFiltro = document.querySelector('input[name="filtro"]');
+        if (inputFiltro) {
+            inputFiltro.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    document.getElementById('filtrosForm').submit();
+                }
+            });
+        }
+
+        // Mostrar spinner al enviar formulario
+        document.querySelectorAll('form').forEach(form => {
+            form.addEventListener('submit', function() {
+                const submitBtn = this.querySelector('button[type="submit"]');
+                if (submitBtn) {
+                    submitBtn.disabled = true;
+                    submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Procesando...';
+                }
+            });
         });
     });
     </script>
