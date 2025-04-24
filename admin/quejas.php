@@ -199,6 +199,7 @@ try {
         .text-truncate-2 {
             display: -webkit-box;
             -webkit-line-clamp: 2;
+            line-clamp: 2;
             -webkit-box-orient: vertical;
             overflow: hidden;
         }
@@ -289,8 +290,8 @@ try {
                     </div>
                 </div>
 
-                                <!-- Tabla de quejas -->
-                                <div class="card">
+                <!-- Tabla de quejas -->
+                <div class="card">
                     <div class="card-header d-flex justify-content-between align-items-center">
                         <h5 class="mb-0">Lista de Quejas</h5>
                         <div class="d-flex align-items-center">
