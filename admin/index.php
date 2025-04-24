@@ -138,7 +138,7 @@ try {
 
                 <!-- Estadísticas -->
                 <div class="row mb-4">
-                    <div class="col-md-3">
+                    <div class="col-md-2">
                         <div class="card bg-primary text-white">
                             <div class="card-body">
                                 <h5 class="card-title">Total Quejas</h5>
@@ -146,7 +146,7 @@ try {
                             </div>
                         </div>
                     </div>
-                    <div class="col-md-3">
+                    <div class="col-md-2">
                         <div class="card bg-warning text-white">
                             <div class="card-body">
                                 <h5 class="card-title">Pendientes</h5>
@@ -154,7 +154,7 @@ try {
                             </div>
                         </div>
                     </div>
-                    <div class="col-md-3">
+                    <div class="col-md-2">
                         <div class="card bg-info text-white">
                             <div class="card-body">
                                 <h5 class="card-title">En Proceso</h5>
@@ -162,11 +162,19 @@ try {
                             </div>
                         </div>
                     </div>
-                    <div class="col-md-3">
+                    <div class="col-md-2">
                         <div class="card bg-success text-white">
                             <div class="card-body">
                                 <h5 class="card-title">Resueltas</h5>
                                 <h2><?php echo $stats['resolved']; ?></h2>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="card bg-secondary text-white">
+                            <div class="card-body">
+                                <h5 class="card-title">Cerradas</h5>
+                                <h2><?php echo $stats['closed']; ?></h2>
                             </div>
                         </div>
                     </div>
@@ -209,22 +217,16 @@ try {
                                     
                                     if ($result && $result->num_rows > 0):
                                         while ($row = $result->fetch_assoc()):
-                                            // Definir clase de badge según el estado
-                                            $badgeClass = '';
-                                            switch ($row['estado']) {
-                                                case 'pendiente':
-                                                    $badgeClass = 'bg-warning text-dark';
-                                                    break;
-                                                case 'en_proceso':
-                                                    $badgeClass = 'bg-info';
-                                                    break;
-                                                case 'resuelto':
-                                                    $badgeClass = 'bg-success';
-                                                    break;
-                                                case 'cerrado':
-                                                    $badgeClass = 'bg-secondary';
-                                                    break;
-                                            }
+                                            // Asignar las clases de Bootstrap según el estado
+                                            $estadoClasses = [
+                                                'pendiente' => 'bg-warning text-dark',
+                                                'en_proceso' => 'bg-info text-white',
+                                                'resuelto' => 'bg-success text-white',
+                                                'cerrado' => 'bg-secondary text-white'
+                                            ];
+                                            
+                                            $estadoClass = $estadoClasses[$row['estado']] ?? 'bg-secondary text-white';
+                                            $estadoTexto = ucfirst(str_replace('_', ' ', $row['estado']));
                                     ?>
                                             <tr>
                                                 <td><?php echo $row['id']; ?></td>
@@ -233,8 +235,8 @@ try {
                                                 <td><?php echo htmlspecialchars($row['eps_nombre']); ?></td>
                                                 <td><?php echo htmlspecialchars($row['tipo_queja_nombre']); ?></td>
                                                 <td>
-                                                    <span class="badge <?php echo $badgeClass; ?>">
-                                                        <?php echo ucfirst(str_replace('_', ' ', $row['estado'])); ?>
+                                                    <span class="badge rounded-pill <?php echo $estadoClass; ?>">
+                                                        <?php echo $estadoTexto; ?>
                                                     </span>
                                                 </td>
                                             </tr>
@@ -261,6 +263,36 @@ try {
                         </div>
                     </div>
                 </div>
+
+<style>
+/* Estilos adicionales para los badges de estado */
+.badge {
+    font-size: 0.875em;
+    padding: 0.5em 0.75em;
+    font-weight: 500;
+}
+
+.badge.rounded-pill {
+    border-radius: 50rem;
+}
+
+/* Mejorar la visibilidad de los estados */
+.badge.bg-warning.text-dark {
+    background-color: #ffc107 !important;
+}
+
+.badge.bg-info {
+    background-color: #0dcaf0 !important;
+}
+
+.badge.bg-success {
+    background-color: #198754 !important;
+}
+
+.badge.bg-secondary {
+    background-color: #6c757d !important;
+}
+</style>
             </main>
         </div>
     </div>
