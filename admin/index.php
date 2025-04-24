@@ -172,208 +172,93 @@ try {
                     </div>
                 </div>
 
-                <!-- Lista de Quejas -->
+                <!-- Últimas quejas registradas -->
                 <div class="card">
                     <div class="card-header">
-                        <h5 class="card-title mb-0">Últimas Quejas Registradas</h5>
+                        <h5 class="card-title mb-0">
+                            <i class="bi bi-list-ul"></i> Últimas quejas registradas
+                        </h5>
                     </div>
                     <div class="card-body">
-                        <?php if ($result && $result->num_rows > 0): ?>
-                            <div class="table-responsive">
-                                <table class="table table-striped table-hover" id="quejasTable">
-                                    <thead>
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Fecha</th>
+                                        <th>Paciente</th>
+                                        <th>EPS</th>
+                                        <th>Tipo</th>
+                                        <th>Estado</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php
+                                    // Consultar las últimas 5 quejas
+                                    $sql = "SELECT q.id, q.fecha_creacion, q.nombre_paciente, 
+                                                e.nombre as eps_nombre, 
+                                                t.nombre as tipo_queja_nombre, 
+                                                q.estado
+                                        FROM quejas q
+                                        LEFT JOIN eps e ON q.eps_id = e.id
+                                        LEFT JOIN tipos_queja t ON q.tipo_queja_id = t.id
+                                        ORDER BY q.fecha_creacion DESC
+                                        LIMIT 5";
+                                    
+                                    $result = $conn->query($sql);
+                                    
+                                    if ($result && $result->num_rows > 0):
+                                        while ($row = $result->fetch_assoc()):
+                                            // Definir clase de badge según el estado
+                                            $badgeClass = '';
+                                            switch ($row['estado']) {
+                                                case 'pendiente':
+                                                    $badgeClass = 'bg-warning text-dark';
+                                                    break;
+                                                case 'en_proceso':
+                                                    $badgeClass = 'bg-info';
+                                                    break;
+                                                case 'resuelto':
+                                                    $badgeClass = 'bg-success';
+                                                    break;
+                                                case 'cerrado':
+                                                    $badgeClass = 'bg-secondary';
+                                                    break;
+                                            }
+                                    ?>
+                                            <tr>
+                                                <td><?php echo $row['id']; ?></td>
+                                                <td><?php echo date('d/m/Y H:i', strtotime($row['fecha_creacion'])); ?></td>
+                                                <td><?php echo htmlspecialchars($row['nombre_paciente']); ?></td>
+                                                <td><?php echo htmlspecialchars($row['eps_nombre']); ?></td>
+                                                <td><?php echo htmlspecialchars($row['tipo_queja_nombre']); ?></td>
+                                                <td>
+                                                    <span class="badge <?php echo $badgeClass; ?>">
+                                                        <?php echo ucfirst(str_replace('_', ' ', $row['estado'])); ?>
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                    <?php 
+                                        endwhile;
+                                    else:
+                                    ?>
                                         <tr>
-                                            <th>ID</th>
-                                            <th>Paciente</th>
-                                            <th>EPS</th>
-                                            <th>Tipo</th>
-                                            <th>Ciudad</th>
-                                            <th>Estado</th>
-                                            <th>Fecha</th>
-                                            <th>Archivo</th>
-                                            <th>Acciones</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <?php while ($queja = $result->fetch_assoc()): ?>
-                                        <tr>
-                                            <td><?php echo $queja['id']; ?></td>
-                                            <td><?php echo htmlspecialchars($queja['nombre_paciente']); ?></td>
-                                            <td><?php echo htmlspecialchars($queja['eps']); ?></td>
-                                            <td><?php echo htmlspecialchars($queja['tipo_queja']); ?></td>
-                                            <td><?php echo htmlspecialchars($queja['ciudad']); ?></td>
-                                            <td>
-                                                <span class="badge bg-<?php 
-                                                    echo $queja['estado'] == 'pendiente' ? 'warning' : 
-                                                        ($queja['estado'] == 'en_proceso' ? 'info' : 
-                                                        ($queja['estado'] == 'resuelto' ? 'success' : 'secondary')); 
-                                                ?>">
-                                                    <?php echo ucfirst($queja['estado']); ?>
-                                                </span>
-                                            </td>
-                                            <td><?php echo date('d/m/Y H:i', strtotime($queja['fecha_creacion'])); ?></td>
-                                            <td>
-                                                <?php if (!empty($queja['archivo_adjunto'])): ?>
-                                                    <?php
-                                                    $file_type = getFileType($queja['archivo_adjunto']);
-                                                    $file_size = file_exists("../" . $queja['archivo_adjunto']) ? 
-                                                        formatFileSize(filesize("../" . $queja['archivo_adjunto'])) : 'N/A';
-                                                    $icon_class = $file_type === 'pdf' ? 'bi-file-pdf' : 'bi-file-image';
-                                                    ?>
-                                                    <a href="../<?php echo htmlspecialchars($queja['archivo_adjunto']); ?>" 
-                                                       class="btn btn-sm btn-outline-primary" 
-                                                       target="_blank"
-                                                       data-bs-toggle="tooltip" 
-                                                       title="Ver archivo (<?php echo $file_size; ?>)">
-                                                        <i class="bi <?php echo $icon_class; ?>"></i>
-                                                        <?php echo $file_type === 'pdf' ? 'PDF' : 'Imagen'; ?>
-                                                    </a>
-                                                <?php else: ?>
-                                                    <span class="text-muted">Sin archivo</span>
-                                                <?php endif; ?>
-                                            </td>
-                                            <td>
-                                                <div class="btn-group">
-                                                    <a href="#" 
-                                                       class="btn btn-sm btn-info"
-                                                       data-bs-toggle="modal"
-                                                       data-bs-target="#verQueja<?php echo $queja['id']; ?>"
-                                                       title="Ver detalles">
-                                                        <i class="bi bi-eye"></i> Ver
-                                                    </a>
-                                                    <a href="editar_queja.php?id=<?php echo $queja['id']; ?>" 
-                                                       class="btn btn-sm btn-warning" 
-                                                       title="Editar">
-                                                        <i class="bi bi-pencil"></i> Editar
-                                                    </a>
-                                                    <?php if (!empty($queja['archivo_adjunto'])): ?>
-                                                        <a href="../<?php echo htmlspecialchars($queja['archivo_adjunto']); ?>" 
-                                                           class="btn btn-sm btn-success" 
-                                                           download 
-                                                           title="Descargar archivo">
-                                                            <i class="bi bi-download"></i> Descargar
-                                                        </a>
-                                                    <?php endif; ?>
-                                                </div>
-
-                                                <!-- Modal para ver detalles -->
-                                                <div class="modal fade" id="verQueja<?php echo $queja['id']; ?>" tabindex="-1">
-                                                    <div class="modal-dialog modal-lg">
-                                                        <div class="modal-content">
-                                                            <div class="modal-header">
-                                                                <h5 class="modal-title">Detalles de la Queja #<?php echo $queja['id']; ?></h5>
-                                                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                                                            </div>
-                                                            <div class="modal-body">
-                                                                <div class="row">
-                                                                    <div class="col-md-6">
-                                                                        <p><strong>Paciente:</strong> <?php echo htmlspecialchars($queja['nombre_paciente']); ?></p>
-                                                                        <p><strong>Documento:</strong> <?php echo htmlspecialchars($queja['documento_identidad']); ?></p>
-                                                                        <p><strong>Email:</strong> <?php echo htmlspecialchars($queja['email']); ?></p>
-                                                                        <p><strong>Teléfono:</strong> <?php echo htmlspecialchars($queja['telefono'] ?? 'No especificado'); ?></p>
-                                                                    </div>
-                                                                    <div class="col-md-6">
-                                                                        <p><strong>EPS:</strong> <?php echo htmlspecialchars($queja['eps']); ?></p>
-                                                                        <p><strong>Ciudad:</strong> <?php echo htmlspecialchars($queja['ciudad']); ?></p>
-                                                                        <p><strong>Tipo de Queja:</strong> <?php echo htmlspecialchars($queja['tipo_queja']); ?></p>
-                                                                        <p><strong>Estado:</strong> 
-                                                                            <span class="badge bg-<?php 
-                                                                                echo $queja['estado'] == 'pendiente' ? 'warning' : 
-                                                                                    ($queja['estado'] == 'en_proceso' ? 'info' : 
-                                                                                    ($queja['estado'] == 'resuelto' ? 'success' : 'secondary')); 
-                                                                            ?>">
-                                                                                <?php echo ucfirst($queja['estado']); ?>
-                                                                            </span>
-                                                                        </p>
-                                                                    </div>
-                                                                </div>
-                                                                <div class="row mt-3">
-                                                                    <div class="col-12">
-                                                                        <h6>Descripción:</h6>
-                                                                        <p class="border p-3 bg-light">
-                                                                            <?php echo nl2br(htmlspecialchars($queja['descripcion'])); ?>
-                                                                        </p>
-                                                                    </div>
-                                                                </div>
-                                                                <?php if (!empty($queja['archivo_adjunto'])): ?>
-                                                                    <div class="row mt-3">
-                                                                        <div class="col-12">
-                                                                            <h6>Archivo Adjunto:</h6>
-                                                                            <div class="border p-3 bg-light">
-                                                                                <?php
-                                                                                $file_type = getFileType($queja['archivo_adjunto']);
-                                                                                $file_size = file_exists("../" . $queja['archivo_adjunto']) ? 
-                                                                                    formatFileSize(filesize("../" . $queja['archivo_adjunto'])) : 'N/A';
-                                                                                ?>
-                                                                                <p class="mb-2">
-                                                                                    <i class="bi <?php echo $file_type === 'pdf' ? 'bi-file-pdf' : 'bi-file-image'; ?>"></i>
-                                                                                    <?php echo basename($queja['archivo_adjunto']); ?>
-                                                                                    (<?php echo $file_size; ?>)
-                                                                                </p>
-                                                                                <?php if ($file_type === 'image'): ?>
-                                                                                    <img src="../<?php echo htmlspecialchars($queja['archivo_adjunto']); ?>" 
-                                                                                         class="img-fluid mb-2" 
-                                                                                         style="max-height: 200px;" 
-                                                                                         alt="Vista previa">
-                                                                                <?php endif; ?>
-                                                                                <div>
-                                                                                    <a href="../<?php echo htmlspecialchars($queja['archivo_adjunto']); ?>" 
-                                                                                       class="btn btn-sm btn-primary" 
-                                                                                       target="_blank">
-                                                                                        <i class="bi bi-eye"></i> Ver
-                                                                                    </a>
-                                                                                    <a href="../<?php echo htmlspecialchars($queja['archivo_adjunto']); ?>" 
-                                                                                       class="btn btn-sm btn-success" 
-                                                                                       download>
-                                                                                        <i class="bi bi-download"></i> Descargar
-                                                                                    </a>
-                                                                                </div>
-                                                                            </div>
-                                                                        </div>
-                                                                    </div>
-                                                                <?php endif; ?>
-                                                            </div>
-                                                            <div class="modal-footer">
-                                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
-                                                                <a href="editar_queja.php?id=<?php echo $queja['id']; ?>" class="btn btn-primary">
-                                                                    <i class="bi bi-pencil"></i> Editar
-                                                                </a>
-                                                            </div>
-                                                        </div>
-                                                    </div>
+                                            <td colspan="6" class="text-center py-4">
+                                                <div class="text-muted">
+                                                    <i class="bi bi-inbox display-4 d-block mb-3"></i>
+                                                    <p>No hay quejas registradas.</p>
                                                 </div>
                                             </td>
                                         </tr>
-                                        <?php endwhile; ?>
-                                    </tbody>
-                                </table>
-                            </div>
-
-                            <!-- Paginación -->
-                            <?php if ($total_paginas > 1): ?>
-                            <nav aria-label="Page navigation" class="mt-4">
-                                <ul class="pagination justify-content-center">
-                                    <li class="page-item <?php echo $pagina <= 1 ? 'disabled' : ''; ?>">
-                                        <a class="page-link" href="?pagina=<?php echo $pagina-1; ?>">Anterior</a>
-                                    </li>
-                                    
-                                    <?php for($i = 1; $i <= $total_paginas; $i++): ?>
-                                        <li class="page-item <?php echo $pagina == $i ? 'active' : ''; ?>">
-                                            <a class="page-link" href="?pagina=<?php echo $i; ?>"><?php echo $i; ?></a>
-                                        </li>
-                                    <?php endfor; ?>
-                                    
-                                    <li class="page-item <?php echo $pagina >= $total_paginas ? 'disabled' : ''; ?>">
-                                        <a class="page-link" href="?pagina=<?php echo $pagina+1; ?>">Siguiente</a>
-                                    </li>
-                                </ul>
-                            </nav>
-                            <?php endif; ?>
-                        <?php else: ?>
-                            <div class="alert alert-info">
-                                No hay quejas registradas.
-                            </div>
-                        <?php endif; ?>
+                                    <?php endif; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="text-end mt-3">
+                            <a href="quejas.php" class="btn btn-primary btn-sm">
+                                <i class="bi bi-eye"></i> Ver todas las quejas
+                            </a>
+                        </div>
                     </div>
                 </div>
             </main>
