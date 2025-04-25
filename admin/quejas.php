@@ -354,21 +354,24 @@ try {
                                                        data-bs-toggle="modal"
                                                        data-bs-target="#verQueja<?php echo $queja['id']; ?>"
                                                        title="Ver detalles">
-                                                        <i class="bi bi-eye"></i> Ver
+                                                        <i class="bi bi-eye"></i> 
                                                     </a>
                                                     <a href="editar_queja.php?id=<?php echo $queja['id']; ?>" 
                                                        class="btn btn-sm btn-warning" 
                                                        title="Editar">
-                                                        <i class="bi bi-pencil"></i> Editar
+                                                        <i class="bi bi-pencil"></i> 
                                                     </a>
-                                                    <?php if (!empty($queja['archivo_adjunto'])): ?>
-                                                        <a href="../<?php echo htmlspecialchars($queja['archivo_adjunto']); ?>" 
-                                                           class="btn btn-sm btn-success" 
-                                                           download 
-                                                           title="Descargar archivo">
-                                                            <i class="bi bi-download"></i> Descargar
-                                                        </a>
-                                                    <?php endif; ?>
+                                                    <?php if (isAdmin()): ?>
+                                                                <button type="button" 
+                                                                        class="btn btn-sm btn-danger"
+                                                                        data-bs-toggle="modal" 
+                                                                        data-bs-target="#deleteModal"
+                                                                        data-id="<?php echo $row['id']; ?>"
+                                                                        data-paciente="<?php echo htmlspecialchars($row['nombre_paciente']); ?>"
+                                                                        title="Eliminar">
+                                                                    <i class="bi bi-trash"></i>
+                                                                </button>
+                                                            <?php endif; ?>
                                                 </div>
 
                                                 <!-- Modal para ver detalles -->
