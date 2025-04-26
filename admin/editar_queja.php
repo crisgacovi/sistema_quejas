@@ -1,7 +1,7 @@
 <?php
 /**
  * Editar Queja - Sistema de Quejas
- * Última modificación: 2025-04-26 05:31:56 UTC
+ * Última modificación: 2025-04-26 20:15:24 UTC
  * @author crisgacovi
  */
 
@@ -29,11 +29,12 @@ if ($id <= 0) {
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     try {
         $estado = $_POST['estado'];
-        $respuesta = trim($_POST['respuesta']); // Nueva variable para la respuesta
+        $respuesta = trim($_POST['respuesta']);
+        $fecha_respuesta = !empty($_POST['fecha_respuesta']) ? $_POST['fecha_respuesta'] : null;
         
-        // Actualizar la queja incluyendo la respuesta
-        $stmt = $conn->prepare("UPDATE quejas SET estado = ?, respuesta = ? WHERE id = ?");
-        $stmt->bind_param("ssi", $estado, $respuesta, $id);
+        // Actualizar la queja incluyendo la respuesta y fecha
+        $stmt = $conn->prepare("UPDATE quejas SET estado = ?, respuesta = ?, fecha_respuesta = ? WHERE id = ?");
+        $stmt->bind_param("sssi", $estado, $respuesta, $fecha_respuesta, $id);
         
         if ($stmt->execute()) {
             $success = true;
@@ -128,7 +129,7 @@ function getBadgeClass($estado) {
 
                 <div class="card">
                     <div class="card-body">
-                        <form action="editar_queja.php?id=<?php echo $id; ?>" method="POST">
+                        <form action="editar_queja.php?id=<?php echo $id; ?>" method="POST" id="quejaForm">
                             <div class="row">
                                 <div class="col-md-6">
                                     <h5 class="card-title">Información del Paciente</h5>
@@ -168,7 +169,7 @@ function getBadgeClass($estado) {
                                             </select>
                                         </dd>
                                         
-                                        <dt class="col-sm-4">Fecha:</dt>
+                                        <dt class="col-sm-4">Fecha Creación:</dt>
                                         <dd class="col-sm-8"><?php echo date('d/m/Y H:i', strtotime($queja['fecha_creacion'])); ?></dd>
                                     </dl>
                                 </div>
@@ -181,13 +182,34 @@ function getBadgeClass($estado) {
                                 </div>
                             </div>
 
-                            <!-- Nuevo campo para la respuesta -->
-                            <h5 class="card-title">Respuesta de la Queja</h5>
-                            <div class="mb-4">
-                                <textarea class="form-control" name="respuesta" rows="5" 
-                                          placeholder="Escriba aquí la respuesta a la queja..."><?php 
-                                    echo htmlspecialchars($queja['respuesta'] ?? ''); 
-                                ?></textarea>
+                            <!-- Sección de Respuesta con Fecha -->
+                            <div class="card mt-4">
+                                <div class="card-header">
+                                    <h5 class="card-title mb-0">Respuesta de la Queja</h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-3 mb-3">
+                                            <label for="fecha_respuesta" class="form-label">Fecha de Respuesta</label>
+                                            <input type="date" 
+                                                   class="form-control" 
+                                                   id="fecha_respuesta" 
+                                                   name="fecha_respuesta"
+                                                   value="<?php echo $queja['fecha_respuesta'] ?? ''; ?>"
+                                                   max="<?php echo date('Y-m-d'); ?>">
+                                        </div>
+                                        <div class="col-md-9 mb-3">
+                                            <label for="respuesta" class="form-label">Respuesta</label>
+                                            <textarea class="form-control" 
+                                                      id="respuesta"
+                                                      name="respuesta" 
+                                                      rows="5" 
+                                                      placeholder="Escriba aquí la respuesta a la queja..."><?php 
+                                                echo htmlspecialchars($queja['respuesta'] ?? ''); 
+                                            ?></textarea>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                             
                             <?php if ($queja['archivo_adjunto']): ?>
@@ -223,5 +245,35 @@ function getBadgeClass($estado) {
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const fechaRespuesta = document.getElementById('fecha_respuesta');
+        const respuestaTextarea = document.getElementById('respuesta');
+        const today = new Date().toISOString().split('T')[0];
+        
+        // Establecer fecha máxima como hoy
+        fechaRespuesta.max = today;
+        
+        // Validar que si hay respuesta, debe haber fecha
+        document.getElementById('quejaForm').addEventListener('submit', function(e) {
+            const respuestaTexto = respuestaTextarea.value.trim();
+            const fecha = fechaRespuesta.value;
+            
+            if (respuestaTexto && !fecha) {
+                e.preventDefault();
+                alert('Si ingresa una respuesta, debe especificar la fecha de respuesta.');
+                return false;
+            }
+            
+            if (fecha && !respuestaTexto) {
+                e.preventDefault();
+                alert('Si especifica una fecha de respuesta, debe ingresar la respuesta.');
+                return false;
+            }
+            
+            return true;
+        });
+    });
+    </script>
 </body>
 </html>
