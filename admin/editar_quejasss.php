@@ -1,0 +1,207 @@
+<?php
+/**
+ * Editar Queja - Sistema de Quejas
+ * Última modificación: 2025-04-26 03:06:21 UTC
+ * @author crisgacovi
+ */
+
+session_start();
+
+// Definir constante para acceso seguro al sidebar
+define('IN_ADMIN', true);
+
+// Verificar si el usuario está autenticado
+if (!isset($_SESSION['admin_loggedin']) || $_SESSION['admin_loggedin'] !== true) {
+    header("location: login.php");
+    exit;
+}
+
+require_once "../config.php";
+
+$id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
+
+if ($id <= 0) {
+    header("location: quejas.php");
+    exit;
+}
+
+// Procesar el formulario cuando se envía
+if ($_SERVER["REQUEST_METHOD"] == "POST") {
+    try {
+        $estado = $_POST['estado'];
+        
+        // Actualizar la queja
+        $stmt = $conn->prepare("UPDATE quejas SET estado = ? WHERE id = ?");
+        $stmt->bind_param("si", $estado, $id);
+        
+        if ($stmt->execute()) {
+            $success = true;
+            $mensaje = "Queja actualizada exitosamente.";
+        } else {
+            throw new Exception("Error al actualizar la queja: " . $stmt->error);
+        }
+    } catch (Exception $e) {
+        $error = $e->getMessage();
+    }
+}
+
+// Obtener datos de la queja
+try {
+    $sql = "SELECT q.*, c.nombre AS ciudad_nombre, e.nombre AS eps_nombre, 
+            t.nombre AS tipo_queja_nombre
+            FROM quejas q
+            JOIN ciudades c ON q.ciudad_id = c.id
+            JOIN eps e ON q.eps_id = e.id
+            JOIN tipos_queja t ON q.tipo_queja_id = t.id
+            WHERE q.id = ?";
+            
+    $stmt = $conn->prepare($sql);
+    $stmt->bind_param("i", $id);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    
+    if ($result->num_rows === 0) {
+        header("location: quejas.php");
+        exit;
+    }
+    
+    $queja = $result->fetch_assoc();
+} catch (Exception $e) {
+    $error = $e->getMessage();
+}
+?>
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Editar Queja - Sistema de Quejas</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.1/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="../css/admin-styles.css">
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Sidebar -->
+            <?php include 'includes/sidebar.php'; ?>
+
+            <!-- Contenido principal -->
+            <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+                <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                    <h1 class="h2">Editar Queja #<?php echo $id; ?></h1>
+                    <div class="btn-toolbar mb-2 mb-md-0">
+                        <div class="btn-group me-2">
+                            <a href="quejas.php" class="btn btn-sm btn-outline-secondary">
+                                <i class="bi bi-arrow-left"></i> Volver
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <?php if (isset($success) && $success): ?>
+                    <div class="alert alert-success alert-dismissible fade show" role="alert">
+                        <i class="bi bi-check-circle-fill"></i> <?php echo $mensaje; ?>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                <?php endif; ?>
+
+                <?php if (isset($error)): ?>
+                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                        <i class="bi bi-exclamation-triangle-fill"></i> <?php echo $error; ?>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                <?php endif; ?>
+
+                <div class="card">
+                    <div class="card-body">
+                        <form action="editar_queja.php?id=<?php echo $id; ?>" method="POST">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <h5 class="card-title">Información del Paciente</h5>
+                                    <dl class="row">
+                                        <dt class="col-sm-4">Nombre:</dt>
+                                        <dd class="col-sm-8"><?php echo htmlspecialchars($queja['nombre_paciente']); ?></dd>
+                                        
+                                        <dt class="col-sm-4">Documento:</dt>
+                                        <dd class="col-sm-8"><?php echo htmlspecialchars($queja['documento_identidad']); ?></dd>
+                                        
+                                        <dt class="col-sm-4">Email:</dt>
+                                        <dd class="col-sm-8"><?php echo htmlspecialchars($queja['email']); ?></dd>
+                                        
+                                        <dt class="col-sm-4">Teléfono:</dt>
+                                        <dd class="col-sm-8"><?php echo htmlspecialchars($queja['telefono']); ?></dd>
+                                        
+                                        <dt class="col-sm-4">Ciudad:</dt>
+                                        <dd class="col-sm-8"><?php echo htmlspecialchars($queja['ciudad_nombre']); ?></dd>
+                                    </dl>
+                                </div>
+                                <div class="col-md-6">
+                                    <h5 class="card-title">Detalles de la Queja</h5>
+                                    <dl class="row">
+                                        <dt class="col-sm-4">EPS:</dt>
+                                        <dd class="col-sm-8"><?php echo htmlspecialchars($queja['eps_nombre']); ?></dd>
+                                        
+                                        <dt class="col-sm-4">Tipo de Queja:</dt>
+                                        <dd class="col-sm-8"><?php echo htmlspecialchars($queja['tipo_queja_nombre']); ?></dd>
+                                        
+                                        <dt class="col-sm-4">Estado:</dt>
+                                        <dd class="col-sm-8">
+                                            <select name="estado" class="form-select" required>
+                                                <option value="Pendiente" <?php echo $queja['estado'] === 'Pendiente' ? 'selected' : ''; ?>>Pendiente</option>
+                                                <option value="En Proceso" <?php echo $queja['estado'] === 'En Proceso' ? 'selected' : ''; ?>>En Proceso</option>
+                                                <option value="Resuelto" <?php echo $queja['estado'] === 'Resuelto' ? 'selected' : ''; ?>>Resuelto</option>
+                                                <option value="Cerrado" <?php echo $queja['estado'] === 'Cerrado' ? 'selected' : ''; ?>>Cerrado</option>
+                                            </select>
+                                        </dd>
+                                        
+                                        <dt class="col-sm-4">Fecha:</dt>
+                                        <dd class="col-sm-8"><?php echo date('d/m/Y H:i', strtotime($queja['fecha_creacion'])); ?></dd>
+                                    </dl>
+                                </div>
+                            </div>
+                            
+                            <h5 class="card-title mt-4">Descripción de la Queja</h5>
+                            <div class="card">
+                                <div class="card-body bg-light">
+                                    <?php echo nl2br(htmlspecialchars($queja['descripcion'])); ?>
+                                </div>
+                            </div>
+                            
+                            <!-- Archivo Adjunto -->
+                            <?php if (!empty($queja['archivo_adjunto'])): ?>
+                                <h5 class="card-title mt-4">Archivo Adjunto</h5>
+                                <div class="card">
+                                    <div class="card-body">
+                                        <?php
+                                        $archivo_path = dirname(__FILE__) . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . $queja['archivo_adjunto'];
+                                        if (file_exists($archivo_path)): ?>
+                                            <a href="../<?php echo htmlspecialchars($queja['archivo_adjunto']); ?>" 
+                                            class="btn btn-outline-primary" target="_blank">
+                                                <i class="bi bi-file-earmark"></i> Ver archivo adjunto
+                                            </a>
+                                        <?php else: ?>
+                                            <div class="alert alert-warning">
+                                                <i class="bi bi-exclamation-triangle"></i> El archivo no se encuentra disponible.
+                                            </div>
+                                        <?php endif; ?>
+                                    </div>
+                                </div>
+                            <?php endif; ?>
+                            
+                            <div class="mt-4">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="bi bi-save"></i> Guardar Cambios
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

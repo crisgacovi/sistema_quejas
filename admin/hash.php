@@ -1,11 +1,5 @@
 <?php
-echo password_hash("admin123", PASSWORD_DEFAULT)."\n"."<br>";//administrador, Cristian Coronado
-echo password_hash("auditor123", PASSWORD_DEFAULT)."\n"."<br>";//auditor, Eduard Escamilla
+echo password_hash("admin123", PASSWORD_DEFAULT)."\n"."<br>";//admin, Administrador Sistema, Cristian Coronado
+echo password_hash("editor123", PASSWORD_DEFAULT)."\n"."<br>";//editor, Editor Sistema, Eduard Escamilla
 
 
-?>
-<?php
-$password = "TuContraseña123"; // Reemplaza esto con la contraseña que desees
-$hashed = password_hash($password, PASSWORD_DEFAULT);
-echo $hashed;
-?>

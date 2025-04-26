@@ -1,137 +1,204 @@
-<?php 
-// admin/login.php 
-session_start(); 
+<?php
+/**
+ * Login de Administración - Sistema de Quejas
+ * Última modificación: 2025-04-23 21:00:23 UTC
+ * @author crisgacovi
+ */
 
-// Si ya está logueado, redirigir al panel 
-if(isset($_SESSION['admin_loggedin']) && $_SESSION['admin_loggedin'] === true) { 
+// Iniciar sesión
+session_start();
+
+// Verificar si el usuario ya está logueado
+if (isset($_SESSION['admin_loggedin']) && $_SESSION['admin_loggedin'] === true) {
     header("location: index.php");
-    exit; 
-} 
+    exit;
+}
 
 // Incluir archivo de configuración
 require_once "../config.php";
 
-$error = ""; 
+// Definir variables
+$username = $password = "";
+$error = "";
 
-// Procesar formulario 
-if($_SERVER["REQUEST_METHOD"] == "POST") { 
-    $username = trim($_POST['username']); 
-    $password = trim($_POST['password']); 
-    
-    // Consultar en la base de datos (método seguro)
-    $sql = "SELECT id, username, password, nombre, email, role FROM usuarios WHERE username = ?";
-    $stmt = $conn->prepare($sql);
-    $stmt->bind_param("s", $username);
-    $stmt->execute();
-    $result = $stmt->get_result();
-    
-    if ($result->num_rows === 1) {
-        $usuario = $result->fetch_assoc();
-        
-        // Verificar contraseña (asumiendo que está hasheada con password_hash)
-        if (password_verify($password, $usuario['password'])) {
-            // Login exitoso
-            $_SESSION['admin_loggedin'] = true; 
-            $_SESSION['admin_username'] = $username;
-            $_SESSION['admin_id'] = $usuario['id'];
-            $_SESSION['admin_nombre'] = $usuario['nombre'];
-            $_SESSION['admin_email'] = $usuario['email'];
-            $_SESSION['admin_role'] = $usuario['role'];
-            
-            header("location: index.php"); 
-            exit;
-        } else {
-            $error = "Usuario o contraseña incorrectos";
+// Procesar datos del formulario
+if ($_SERVER["REQUEST_METHOD"] == "POST") {
+    try {
+        // Validar campos vacíos
+        if (empty(trim($_POST["username"])) || empty(trim($_POST["password"]))) {
+            throw new Exception("Por favor, complete todos los campos.");
         }
-    } else {
-        // Fallback para credenciales básicas (solo para desarrollo)
-        $admin_user = "admin";
-        $admin_pass = "admin123";
+
+        $username = trim($_POST["username"]);
+        $password = trim($_POST["password"]);
+
+        // Preparar la consulta
+        $sql = "SELECT id, username, password, nombre_completo, role, estado FROM usuarios WHERE username = ?";
         
-        if ($username === $admin_user && $password === $admin_pass) { 
-            // Login exitoso con credenciales fallback
-            $_SESSION['admin_loggedin'] = true; 
-            $_SESSION['admin_username'] = $username;
-            $_SESSION['admin_id'] = 1; // ID predeterminado para admin
-            $_SESSION['admin_nombre'] = "Administrador";
-            $_SESSION['admin_email'] = "admin@example.com";
-            $_SESSION['admin_role'] = "admin";
+        if ($stmt = $conn->prepare($sql)) {
+            $stmt->bind_param("s", $username);
             
-            header("location: index.php"); 
-            exit;
-        } else { 
-            $error = "Usuario o contraseña incorrectos"; 
+            if ($stmt->execute()) {
+                $result = $stmt->get_result();
+                
+                if ($result->num_rows == 1) {
+                    $row = $result->fetch_assoc();
+                    
+                    // Verificar estado del usuario
+                    if ($row['estado'] == 0) {
+                        throw new Exception("Su cuenta está desactivada. Contacte al administrador.");
+                    }
+                    
+                    // Verificar contraseña
+                    if (password_verify($password, $row['password'])) {
+                        // Almacenar datos en variables de sesión
+                        $_SESSION['admin_loggedin'] = true;
+                        $_SESSION['admin_id'] = $row['id'];
+                        $_SESSION['admin_username'] = $row['username'];
+                        $_SESSION['admin_nombre'] = $row['nombre_completo'];
+                        $_SESSION['admin_role'] = $row['role'];
+                        
+                        // Actualizar último acceso
+                        $update_sql = "UPDATE usuarios SET ultimo_login = NOW() WHERE id = ?";
+                        if ($update_stmt = $conn->prepare($update_sql)) {
+                            $update_stmt->bind_param("i", $row['id']);
+                            $update_stmt->execute();
+                            $update_stmt->close();
+                        }
+                        
+                        // Redirigir al usuario
+                        header("location: index.php");
+                        exit;
+                    } else {
+                        throw new Exception("La contraseña ingresada no es válida.");
+                    }
+                } else {
+                    throw new Exception("No existe una cuenta con ese nombre de usuario.");
+                }
+            } else {
+                throw new Exception("Error en el servidor. Por favor, intente más tarde.");
+            }
+            
+            $stmt->close();
         }
+    } catch (Exception $e) {
+        $error = $e->getMessage();
     }
-} 
+}
+
+$conn->close();
 ?>
 
-<!DOCTYPE html> 
-<html lang="es"> 
-<head> 
-    <meta charset="UTF-8"> 
-    <meta name="viewport" content="width=device-width, initial-scale=1.0"> 
-    <title>Administración - Login</title> 
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Sistema de Quejas</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.3/font/bootstrap-icons.css">
-    <link rel="stylesheet" href="../css/admin-styles.css">
-</head> 
-<body class="bg-light"> 
-    <div class="container">
-        <div class="row justify-content-center mt-5">
-            <div class="col-lg-5 col-md-7">
-                <div class="card shadow-sm">
-                    <div class="card-header bg-primary text-white text-center">
-                        <h4 class="my-0">HealthComplaints</h4>
-                        <p class="mb-0">Panel de Administración</p>
-                    </div>
-                    <div class="card-body p-4">
-                        <h5 class="card-title text-center mb-4">Iniciar Sesión</h5>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.1/font/bootstrap-icons.css">
+    <style>
+        html, body {
+            height: 100%;
+        }
+        body {
+            display: flex;
+            align-items: center;
+            padding-top: 40px;
+            padding-bottom: 40px;
+            background-color: #f5f5f5;
+        }
+        .form-signin {
+            width: 100%;
+            max-width: 330px;
+            padding: 15px;
+            margin: auto;
+        }
+        .form-signin .form-floating:focus-within {
+            z-index: 2;
+        }
+        .form-signin input[type="text"] {
+            margin-bottom: -1px;
+            border-bottom-right-radius: 0;
+            border-bottom-left-radius: 0;
+        }
+        .form-signin input[type="password"] {
+            margin-bottom: 10px;
+            border-top-left-radius: 0;
+            border-top-right-radius: 0;
+        }
+        .logo {
+            width: 100px;
+            height: 100px;
+            margin-bottom: 1.5rem;
+        }
+        .error-shake {
+            animation: shake 0.82s cubic-bezier(.36,.07,.19,.97) both;
+            transform: translate3d(0, 0, 0);
+        }
+        @keyframes shake {
+            10%, 90% { transform: translate3d(-1px, 0, 0); }
+            20%, 80% { transform: translate3d(2px, 0, 0); }
+            30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+            40%, 60% { transform: translate3d(4px, 0, 0); }
+        }
+    </style>
+</head>
+<body class="text-center">
+    <main class="form-signin">
+        <form method="post" action="<?php echo htmlspecialchars($_SERVER["PHP_SELF"]); ?>" 
+              class="<?php echo !empty($error) ? 'error-shake' : ''; ?>">
+            <img class="logo mb-4" src="../assets/img/logo.png" alt="Logo">
+            <h1 class="h3 mb-3 fw-normal">Acceso Administrativo</h1>
 
-                        <?php if (!empty($error)): ?> 
-                        <div class="alert alert-danger"> 
-                            <?php echo $error; ?>
-                        </div> 
-                        <?php endif; ?> 
-                        
-                        <form action="login.php" method="post"> 
-                            <div class="mb-3"> 
-                                <label for="username" class="form-label">Usuario</label> 
-                                <div class="input-group">
-                                    <span class="input-group-text"><i class="bi bi-person"></i></span>
-                                    <input type="text" class="form-control" id="username" name="username" required> 
-                                </div>
-                            </div> 
-                            
-                            <div class="mb-4"> 
-                                <label for="password" class="form-label">Contraseña</label> 
-                                <div class="input-group">
-                                    <span class="input-group-text"><i class="bi bi-lock"></i></span>
-                                    <input type="password" class="form-control" id="password" name="password" required> 
-                                </div>
-                            </div> 
-                            
-                            <div class="d-grid gap-2"> 
-                                <button type="submit" class="btn btn-primary">
-                                    <i class="bi bi-box-arrow-in-right me-2"></i>Ingresar
-                                </button> 
-                            </div> 
-                        </form> 
-                        
-                        <div class="text-center mt-3">
-                            <a href="../index.php" class="text-decoration-none">
-                                <i class="bi bi-arrow-left me-1"></i>Volver al sitio principal
-                            </a>
-                        </div>
-                    </div>
-                    <div class="card-footer text-center text-muted">
-                        &copy; 2025 Sistema de Quejas y Reclamos en Servicios de Salud
-                    </div>
+            <?php if (!empty($error)): ?>
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <i class="bi bi-exclamation-triangle-fill"></i> <?php echo $error; ?>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                 </div>
+            <?php endif; ?>
+
+            <div class="form-floating">
+                <input type="text" class="form-control" id="username" name="username" 
+                       placeholder="Usuario" value="<?php echo htmlspecialchars($username); ?>" required>
+                <label for="username">Usuario</label>
             </div>
-        </div>
-    </div>
-    
+            <div class="form-floating">
+                <input type="password" class="form-control" id="password" name="password" 
+                       placeholder="Contraseña" required>
+                <label for="password">Contraseña</label>
+            </div>
+
+            <button class="w-100 btn btn-lg btn-primary mb-3" type="submit">
+                <i class="bi bi-box-arrow-in-right"></i> Iniciar Sesión
+            </button>
+            
+            <a href="../index.php" class="btn btn-link">
+                <i class="bi bi-arrow-left"></i> Volver al sitio público
+            </a>
+            
+            <p class="mt-5 mb-3 text-muted">&copy; <?php echo date('Y'); ?> Sistema de Quejas</p>
+        </form>
+    </main>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
-</body> 
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Enfocar el campo de usuario al cargar la página
+        document.getElementById('username').focus();
+
+        // Prevenir múltiples envíos del formulario
+        const form = document.querySelector('form');
+        form.addEventListener('submit', function(e) {
+            const submitButton = this.querySelector('button[type="submit"]');
+            if (submitButton.disabled) {
+                e.preventDefault();
+            } else {
+                submitButton.disabled = true;
+                submitButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Iniciando sesión...';
+            }
+        });
+    });
+    </script>
+</body>
 </html>
