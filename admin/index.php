@@ -23,25 +23,6 @@ function isAdmin()
     return $_SESSION['admin_role'] === 'admin';
 }
 
-// Función para obtener el tipo de archivo
-function getFileType($filename)
-{
-    $extension = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
-    return $extension === 'pdf' ? 'pdf' : 'image';
-}
-
-// Función para formatear el tamaño del archivo
-function formatFileSize($bytes)
-{
-    if ($bytes >= 1048576) {
-        return number_format($bytes / 1048576, 2) . ' MB';
-    } elseif ($bytes >= 1024) {
-        return number_format($bytes / 1024, 2) . ' KB';
-    } else {
-        return $bytes . ' bytes';
-    }
-}
-
 // Obtener estadísticas con manejo de errores
 try {
     $stats = [
@@ -57,30 +38,28 @@ try {
         $stats['total'] = $result->fetch_assoc()['count'];
     }
 
-    $result = $conn->query("SELECT COUNT(*) as count FROM quejas WHERE estado = 'pendiente'");
+    $result = $conn->query("SELECT COUNT(*) as count FROM quejas WHERE estado = 'Pendiente'");
     if ($result) {
         $stats['pending'] = $result->fetch_assoc()['count'];
     }
 
-    $result = $conn->query("SELECT COUNT(*) as count FROM quejas WHERE estado = 'en_proceso'");
+    $result = $conn->query("SELECT COUNT(*) as count FROM quejas WHERE estado = 'En Proceso'");
     if ($result) {
         $stats['in_progress'] = $result->fetch_assoc()['count'];
     }
 
-    $result = $conn->query("SELECT COUNT(*) as count FROM quejas WHERE estado = 'resuelto'");
+    $result = $conn->query("SELECT COUNT(*) as count FROM quejas WHERE estado = 'Resuelto'");
     if ($result) {
         $stats['resolved'] = $result->fetch_assoc()['count'];
     }
 
-    $result = $conn->query("SELECT COUNT(*) as count FROM quejas WHERE estado = 'cerrado'");
+    $result = $conn->query("SELECT COUNT(*) as count FROM quejas WHERE estado = 'Cerrado'");
     if ($result) {
         $stats['closed'] = $result->fetch_assoc()['count'];
     }
 } catch (Exception $e) {
     error_log("Error al obtener estadísticas: " . $e->getMessage());
 }
-
-
 ?>
 
 <!DOCTYPE html>
@@ -105,19 +84,12 @@ try {
             <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
                 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
                     <h1 class="h2">Dashboard</h1>
-                    <div class="btn-toolbar mb-2 mb-md-0">
-                        <div class="btn-group me-2">
-                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="exportToExcel()">
-                                <i class="bi bi-file-earmark-excel"></i> Exportar
-                            </button>
-                        </div>
-                    </div>
                 </div>
 
                 <!-- Estadísticas -->
                 <div class="row mb-5">
                     <div class="col-md-3">
-                        <div class="card bg-warning text-white">
+                        <div class="card bg-warning text-dark">
                             <div class="card-body">
                                 <h5 class="card-title">Pendientes</h5>
                                 <h2><?php echo $stats['pending']; ?></h2>
@@ -187,16 +159,23 @@ try {
 
                                     if ($result && $result->num_rows > 0):
                                         while ($row = $result->fetch_assoc()):
-                                            // Asignar las clases de Bootstrap según el estado
-                                            $estadoClasses = [
-                                                'pendiente' => 'bg-warning text-dark',
-                                                'en_proceso' => 'bg-info text-white',
-                                                'resuelto' => 'bg-success text-white',
-                                                'cerrado' => 'bg-secondary text-white'
-                                            ];
-
-                                            $estadoClass = $estadoClasses[$row['estado']] ?? 'bg-secondary text-white';
-                                            $estadoTexto = ucfirst(str_replace('_', ' ', $row['estado']));
+                                            // Determinar la clase del badge según el estado
+                                            switch($row['estado']) {
+                                                case 'Pendiente':
+                                                    $badgeClass = 'bg-warning text-dark';
+                                                    break;
+                                                case 'En Proceso':
+                                                    $badgeClass = 'bg-info text-white';
+                                                    break;
+                                                case 'Resuelto':
+                                                    $badgeClass = 'bg-success text-white';
+                                                    break;
+                                                case 'Cerrado':
+                                                    $badgeClass = 'bg-secondary text-white';
+                                                    break;
+                                                default:
+                                                    $badgeClass = 'bg-secondary text-white';
+                                            }
                                     ?>
                                             <tr>
                                                 <td><?php echo $row['id']; ?></td>
@@ -205,8 +184,8 @@ try {
                                                 <td><?php echo htmlspecialchars($row['eps_nombre']); ?></td>
                                                 <td><?php echo htmlspecialchars($row['tipo_queja_nombre']); ?></td>
                                                 <td>
-                                                    <span class="badge rounded-pill <?php echo $estadoClass; ?>">
-                                                        <?php echo $estadoTexto; ?>
+                                                    <span class="badge rounded-pill <?php echo $badgeClass; ?>">
+                                                        <?php echo $row['estado']; ?>
                                                     </span>
                                                 </td>
                                             </tr>
@@ -233,91 +212,10 @@ try {
                         </div>
                     </div>
                 </div>
-
-                <style>
-                    /* Estilos adicionales para los badges de estado */
-                    .badge {
-                        font-size: 0.875em;
-                        padding: 0.5em 0.75em;
-                        font-weight: 500;
-                    }
-
-                    .badge.rounded-pill {
-                        border-radius: 50rem;
-                    }
-
-                    /* Mejorar la visibilidad de los estados */
-                    .badge.bg-warning.text-dark {
-                        background-color: #ffc107 !important;
-                    }
-
-                    .badge.bg-info {
-                        background-color: #0dcaf0 !important;
-                    }
-
-                    .badge.bg-success {
-                        background-color: #198754 !important;
-                    }
-
-                    .badge.bg-secondary {
-                        background-color: #6c757d !important;
-                    }
-                </style>
             </main>
         </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
-    <script>
-        // Inicializar componentes cuando el DOM esté listo
-        document.addEventListener('DOMContentLoaded', function() {
-            // Inicializar tooltips
-            var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
-            var tooltipList = tooltipTriggerList.map(function(tooltipTriggerEl) {
-                return new bootstrap.Tooltip(tooltipTriggerEl)
-            });
-
-            // Previsualizar imagen al hacer hover sobre el enlace
-            document.querySelectorAll('a[href$=".jpg"], a[href$=".jpeg"]').forEach(link => {
-                let preview = document.createElement('div');
-                preview.className = 'image-preview';
-                preview.style.display = 'none';
-                preview.style.position = 'absolute';
-                preview.style.backgroundColor = 'white';
-                preview.style.padding = '5px';
-                preview.style.border = '1px solid #ccc';
-                preview.style.borderRadius = '5px';
-                preview.style.zIndex = '1000';
-
-                let img = document.createElement('img');
-                img.src = link.href;
-                img.style.maxWidth = '200px';
-                img.style.maxHeight = '200px';
-                preview.appendChild(img);
-                document.body.appendChild(preview);
-
-                link.addEventListener('mouseover', (e) => {
-                    preview.style.display = 'block';
-                    preview.style.left = e.pageX + 10 + 'px';
-                    preview.style.top = e.pageY + 10 + 'px';
-                });
-
-                link.addEventListener('mouseout', () => {
-                    preview.style.display = 'none';
-                });
-            });
-        });
-
-        // Función para exportar a Excel
-        function exportToExcel() {
-            const table = document.getElementById('quejasTable');
-            const wb = XLSX.utils.table_to_book(table, {
-                sheet: "Quejas"
-            });
-            XLSX.writeFile(wb, 'quejas_' + new Date().toISOString().slice(0, 10) + '.xlsx');
-        }
-    </script>
 </body>
-
 </html>
