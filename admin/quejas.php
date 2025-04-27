@@ -38,11 +38,11 @@ if (isset($_POST['generar_reporte'])) {
     if (empty($fecha_inicio) || empty($fecha_fin)) {
         $error = "Por favor seleccione ambas fechas para generar el reporte.";
     } else {
-        // Consulta para el reporte
+        // Consulta para el reporte incluyendo fecha_respuesta
         $sql = "SELECT q.id, q.fecha_creacion, q.nombre_paciente, q.documento_identidad, 
                        q.email, q.telefono, c.nombre AS ciudad_nombre, 
                        e.nombre AS eps_nombre, t.nombre AS tipo_queja_nombre, 
-                       q.descripcion, q.respuesta, q.estado
+                       q.descripcion, q.respuesta, q.fecha_respuesta, q.estado
                 FROM quejas q
                 JOIN ciudades c ON q.ciudad_id = c.id
                 JOIN eps e ON q.eps_id = e.id
@@ -56,38 +56,58 @@ if (isset($_POST['generar_reporte'])) {
         $result = $stmt->get_result();
         
         if ($result->num_rows > 0) {
+            // Nombre del archivo
+            $filename = "reporte_quejas_" . date('Y-m-d') . ".xls";
+            
             // Configurar headers para descarga de Excel
-            header('Content-Type: application/vnd.ms-excel');
-            header('Content-Disposition: attachment;filename="reporte_quejas_' . date('Y-m-d') . '.xls"');
-            header('Cache-Control: max-age=0');
+            header("Content-Type: application/vnd.ms-excel; charset=UTF-8");
+            header("Content-Disposition: attachment; filename=\"$filename\"");
+            header("Cache-Control: no-cache");
+            header("Pragma: no-cache");
             
-            // Crear el archivo Excel
-            echo "ID\tFecha\tPaciente\tDocumento\tEmail\tTeléfono\tCiudad\tEPS\tTipo de Queja\tDescripción\tRespuesta\tEstado\n";
+            // Escribir BOM UTF-8
+            echo chr(0xEF) . chr(0xBB) . chr(0xBF);
             
+            // Crear el archivo Excel usando HTML
+            echo "<table border='1'>";
+            
+            // Encabezados
+            echo "<tr style='background-color: #4CAF50; color: white; font-weight: bold;'>";
+            echo "<td>ID</td>";
+            echo "<td>Fecha Creación</td>";
+            echo "<td>Paciente</td>";
+            echo "<td>Documento</td>";
+            echo "<td>Email</td>";
+            echo "<td>Teléfono</td>";
+            echo "<td>Ciudad</td>";
+            echo "<td>EPS</td>";
+            echo "<td>Tipo de Queja</td>";
+            echo "<td>Descripción</td>";
+            echo "<td>Respuesta</td>";
+            echo "<td>Fecha Respuesta</td>";
+            echo "<td>Estado</td>";
+            echo "</tr>";
+            
+            // Datos
             while ($row = $result->fetch_assoc()) {
-                // Limpiar datos para Excel
-                foreach ($row as &$field) {
-                    // Eliminar tabulaciones y saltos de línea
-                    $field = str_replace(["\r", "\n", "\t"], [" ", " ", " "], $field);
-                    // Escapar comillas dobles
-                    $field = str_replace('"', '""', $field);
-                }
-                
-                echo implode("\t", [
-                    $row['id'],
-                    $row['fecha_creacion'],
-                    $row['nombre_paciente'],
-                    $row['documento_identidad'],
-                    $row['email'],
-                    $row['telefono'],
-                    $row['ciudad_nombre'],
-                    $row['eps_nombre'],
-                    $row['tipo_queja_nombre'],
-                    $row['descripcion'],
-                    $row['respuesta'],
-                    $row['estado']
-                ]) . "\n";
+                echo "<tr>";
+                echo "<td style='mso-number-format:\"\\@\";'>" . $row['id'] . "</td>";
+                echo "<td>" . date('d/m/Y H:i', strtotime($row['fecha_creacion'])) . "</td>";
+                echo "<td>" . htmlspecialchars($row['nombre_paciente']) . "</td>";
+                echo "<td style='mso-number-format:\"\\@\";'>" . htmlspecialchars($row['documento_identidad']) . "</td>";
+                echo "<td>" . htmlspecialchars($row['email']) . "</td>";
+                echo "<td style='mso-number-format:\"\\@\";'>" . htmlspecialchars($row['telefono']) . "</td>";
+                echo "<td>" . htmlspecialchars($row['ciudad_nombre']) . "</td>";
+                echo "<td>" . htmlspecialchars($row['eps_nombre']) . "</td>";
+                echo "<td>" . htmlspecialchars($row['tipo_queja_nombre']) . "</td>";
+                echo "<td style='white-space: pre-wrap;'>" . htmlspecialchars($row['descripcion']) . "</td>";
+                echo "<td style='white-space: pre-wrap;'>" . htmlspecialchars($row['respuesta']) . "</td>";
+                echo "<td>" . ($row['fecha_respuesta'] ? date('d/m/Y', strtotime($row['fecha_respuesta'])) : '') . "</td>";
+                echo "<td>" . htmlspecialchars($row['estado']) . "</td>";
+                echo "</tr>";
             }
+            
+            echo "</table>";
             exit;
         } else {
             $error = "No se encontraron quejas en el período seleccionado.";
