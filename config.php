@@ -2,7 +2,7 @@
 // config.php - Archivo de configuración
 define('DB_SERVER', 'localhost');
 define('DB_USERNAME', 'root');
-define('DB_PASSWORD', '415900');
+define('DB_PASSWORD', '415902');
 define('DB_NAME', 'sistema_quejas_salud');
 
 // Intentar conectar a la base de datos MySQL
