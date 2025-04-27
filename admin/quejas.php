@@ -1,7 +1,7 @@
 <?php
 /**
  * Gestión de Quejas - Sistema de Quejas
- * Última modificación: 2025-04-26 05:40:04 UTC
+ * Última modificación: 2025-04-27 02:23:41 UTC
  * @author crisgacovi
  */
 
@@ -27,6 +27,22 @@ function getBadgeClass($estado) {
         'Cerrado' => 'secondary'
     );
     return isset($badges[$estado]) ? $badges[$estado] : 'primary';
+}
+
+// Configuración de la paginación
+$quejas_por_pagina = 10;
+$pagina_actual = isset($_GET['pagina']) ? (int)$_GET['pagina'] : 1;
+$offset = ($pagina_actual - 1) * $quejas_por_pagina;
+
+// Obtener el total de quejas para la paginación
+try {
+    $sql_total = "SELECT COUNT(*) as total FROM quejas";
+    $result_total = $conn->query($sql_total);
+    $row_total = $result_total->fetch_assoc();
+    $total_quejas = $row_total['total'];
+    $total_paginas = ceil($total_quejas / $quejas_por_pagina);
+} catch (Exception $e) {
+    $error = $e->getMessage();
 }
 
 // Procesar la generación del reporte Excel si se solicita
@@ -115,7 +131,7 @@ if (isset($_POST['generar_reporte'])) {
     }
 }
 
-// Obtener lista de quejas para la tabla principal
+// Obtener lista de quejas para la tabla principal con paginación
 try {
     $sql = "SELECT q.*, c.nombre AS ciudad_nombre, e.nombre AS eps_nombre, 
             t.nombre AS tipo_queja_nombre, q.fecha_creacion
@@ -123,9 +139,13 @@ try {
             JOIN ciudades c ON q.ciudad_id = c.id
             JOIN eps e ON q.eps_id = e.id
             JOIN tipos_queja t ON q.tipo_queja_id = t.id
-            ORDER BY q.fecha_creacion DESC";
+            ORDER BY q.fecha_creacion DESC
+            LIMIT ? OFFSET ?";
             
-    $result = $conn->query($sql);
+    $stmt = $conn->prepare($sql);
+    $stmt->bind_param("ii", $quejas_por_pagina, $offset);
+    $stmt->execute();
+    $result = $stmt->get_result();
 } catch (Exception $e) {
     $error = $e->getMessage();
 }
@@ -250,6 +270,63 @@ try {
                             <?php endif; ?>
                         </tbody>
                     </table>
+
+                    <!-- Paginación -->
+                    <?php if ($total_paginas > 1): ?>
+                    <nav aria-label="Navegación de páginas">
+                        <ul class="pagination justify-content-center">
+                            <!-- Botón Anterior -->
+                            <li class="page-item <?php echo $pagina_actual <= 1 ? 'disabled' : ''; ?>">
+                                <a class="page-link" href="?pagina=<?php echo $pagina_actual - 1; ?>" 
+                                   <?php echo $pagina_actual <= 1 ? 'tabindex="-1" aria-disabled="true"' : ''; ?>>
+                                    <i class="bi bi-chevron-left"></i> Anterior
+                                </a>
+                            </li>
+                            
+                            <!-- Números de página -->
+                            <?php
+                            $rango = 2;
+                            $inicio_rango = max(1, $pagina_actual - $rango);
+                            $fin_rango = min($total_paginas, $pagina_actual + $rango);
+                            
+                            if ($inicio_rango > 1) {
+                                echo '<li class="page-item"><a class="page-link" href="?pagina=1">1</a></li>';
+                                if ($inicio_rango > 2) {
+                                    echo '<li class="page-item disabled"><span class="page-link">...</span></li>';
+                                }
+                            }
+                            
+                            for ($i = $inicio_rango; $i <= $fin_rango; $i++) {
+                                echo '<li class="page-item ' . ($pagina_actual == $i ? 'active' : '') . '">';
+                                echo '<a class="page-link" href="?pagina=' . $i . '">' . $i . '</a>';
+                                echo '</li>';
+                            }
+                            
+                            if ($fin_rango < $total_paginas) {
+                                if ($fin_rango < $total_paginas - 1) {
+                                    echo '<li class="page-item disabled"><span class="page-link">...</span></li>';
+                                }
+                                echo '<li class="page-item"><a class="page-link" href="?pagina=' . $total_paginas . '">' . $total_paginas . '</a></li>';
+                            }
+                            ?>
+                            
+                            <!-- Botón Siguiente -->
+                            <li class="page-item <?php echo $pagina_actual >= $total_paginas ? 'disabled' : ''; ?>">
+                                <a class="page-link" href="?pagina=<?php echo $pagina_actual + 1; ?>"
+                                   <?php echo $pagina_actual >= $total_paginas ? 'tabindex="-1" aria-disabled="true"' : ''; ?>>
+                                    Siguiente <i class="bi bi-chevron-right"></i>
+                                </a>
+                            </li>
+                        </ul>
+                    </nav>
+                    
+                    <!-- Información de paginación -->
+                    <div class="text-center text-muted small mt-2">
+                        Mostrando <?php echo ($offset + 1); ?> a 
+                        <?php echo min($offset + $quejas_por_pagina, $total_quejas); ?> de 
+                        <?php echo $total_quejas; ?> quejas
+                    </div>
+                    <?php endif; ?>
                 </div>
             </main>
         </div>
