@@ -1,25 +1,43 @@
 <?php
-// Verificar que el script no sea accedido directamente
-if (!defined('IN_ADMIN') && !isset($_SESSION['admin_loggedin'])) {
-    header("location: ../login.php");
+if (!defined('IN_ADMIN')) {
     exit;
 }
+// Removida la función isAdmin() para evitar redeclaración
 ?>
 
-<nav id="sidebar" class="col-md-3 col-lg-2 d-md-block bg-dark sidebar collapse">
+<!-- Botón del menú hamburguesa -->
+<button class="navbar-toggler position-fixed d-md-none collapsed" 
+        type="button" 
+        data-bs-toggle="collapse" 
+        data-bs-target="#sidebarMenu" 
+        aria-controls="sidebarMenu" 
+        aria-expanded="false" 
+        aria-label="Toggle navigation"
+        style="top: 10px; left: 10px; z-index: 1031; background-color: #ffffff;">
+    <span class="navbar-toggler-icon"></span>
+</button>
+
+<nav id="sidebarMenu" class="col-md-3 col-lg-2 d-md-block bg-light sidebar collapse">
     <div class="position-sticky pt-3">
-        <!-- Header del Sidebar -->
+        <!-- Logo y nombre del sistema -->
         <div class="text-center mb-4">
-            <h5 class="text-white">Sistema PQRS</h5>
-            <p class="text-white-50">Panel de Administración</p>
+            <img src="../img/logo.png" alt="Logo" class="img-fluid mb-3" style="max-width: 100px;">
+            <h6 class="sidebar-heading px-3 mb-1">Sistema de Quejas</h6>
         </div>
 
-        <!-- Menú Principal -->
+        <!-- Usuario actual -->
+        <div class="px-3 mb-3">
+            <div class="d-flex align-items-center text-dark">
+                <i class="bi bi-person-circle me-2"></i>
+                <small><?php echo htmlspecialchars($_SESSION['admin_username']); ?></small>
+            </div>
+        </div>
+
         <ul class="nav flex-column">
             <li class="nav-item">
                 <a class="nav-link <?php echo basename($_SERVER['PHP_SELF']) == 'index.php' ? 'active' : ''; ?>" 
                    href="index.php">
-                    <i class="bi bi-house-door me-2"></i>
+                    <i class="bi bi-speedometer2 me-2"></i>
                     Dashboard
                 </a>
             </li>
@@ -30,7 +48,7 @@ if (!defined('IN_ADMIN') && !isset($_SESSION['admin_loggedin'])) {
                     Gestión de Quejas
                 </a>
             </li>
-            <?php if (isAdmin()): ?>
+            <?php if ($_SESSION['admin_role'] === 'admin'): ?>
                 <li class="nav-item">
                     <a class="nav-link <?php echo basename($_SERVER['PHP_SELF']) == 'eps.php' ? 'active' : ''; ?>" 
                        href="eps.php">
@@ -59,109 +77,149 @@ if (!defined('IN_ADMIN') && !isset($_SESSION['admin_loggedin'])) {
                         Usuarios
                     </a>
                 </li>
-                <li class="nav-item">
-                    <a class="nav-link <?php echo basename($_SERVER['PHP_SELF']) == 'reportes.php' ? 'active' : ''; ?>" 
-                       href="reportes.php">
-                        <i class="bi bi-graph-up me-2"></i>
-                        Reportes
-                    </a>
-                </li>
             <?php endif; ?>
         </ul>
 
         <!-- Divider -->
-        <hr class="text-white-50 my-3">
+        <hr class="my-3">
 
-        <!-- Menú de Usuario -->
-        <ul class="nav flex-column">
-            <li class="nav-item">
-                <a class="nav-link <?php echo basename($_SERVER['PHP_SELF']) == 'perfil.php' ? 'active' : ''; ?>" 
-                   href="perfil.php">
-                    <i class="bi bi-person me-2"></i>
-                    Mi Perfil
-                    <small class="ms-2 text-muted"><?php echo htmlspecialchars($_SESSION['admin_username'] ?? ''); ?></small>
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link" href="../index.php" target="_blank">
-                    <i class="bi bi-box-arrow-up-right me-2"></i>
-                    Ver Sitio
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link text-danger" href="logout.php">
-                    <i class="bi bi-box-arrow-right me-2"></i>
-                    Cerrar Sesión
-                </a>
-            </li>
-        </ul>
-
-        <!-- Footer del Sidebar -->
-        <div class="text-center text-white-50 mt-4 small">
-            <p>Versión 1.0</p>
-            <p>&copy; <?php echo date('Y'); ?> PQRS</p>
+        <!-- Cerrar sesión -->
+        <div class="px-3">
+            <a href="logout.php" class="btn btn-outline-primary btn-sm w-100">
+                <i class="bi bi-box-arrow-right me-2"></i>
+                Cerrar sesión
+            </a>
         </div>
     </div>
 </nav>
 
 <style>
-/* Estilos adicionales para el sidebar */
 .sidebar {
-    min-height: 100vh;
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 1030;
     box-shadow: inset -1px 0 0 rgba(0, 0, 0, .1);
+    background-color: #f8f9fa;
 }
 
 .sidebar .nav-link {
-    color: #fff;
     font-weight: 500;
+    color: #333;
     padding: .5rem 1rem;
-    opacity: 0.75;
-    transition: all 0.3s ease;
+    transition: all 0.3s;
 }
 
 .sidebar .nav-link:hover {
-    opacity: 1;
-    background: rgba(255, 255, 255, 0.1);
+    color: #0d6efd;
+    background: rgba(13, 110, 253, .1);
 }
 
 .sidebar .nav-link.active {
-    opacity: 1;
-    background: rgba(255, 255, 255, 0.1);
-    border-left: 3px solid #0d6efd;
+    color: #0d6efd;
+    background: rgba(13, 110, 253, .15);
 }
 
-.sidebar .nav-link i {
-    margin-right: 4px;
+.sidebar-heading {
+    font-size: .75rem;
+    text-transform: uppercase;
+    color: #6c757d;
 }
 
-.sidebar hr {
-    margin: 1rem 0;
-    border-color: rgba(255, 255, 255, 0.1);
+.navbar-toggler {
+    padding: .5rem;
+    border: 1px solid rgba(0, 0, 0, .1);
+    border-radius: .25rem;
+    transition: all 0.3s;
+}
+
+.navbar-toggler:hover {
+    background-color: #f8f9fa;
+}
+
+.navbar-toggler-icon {
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba%280, 0, 0, 0.55%29' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e");
 }
 
 @media (max-width: 767.98px) {
     .sidebar {
-        position: fixed;
-        top: 0;
-        bottom: 0;
-        left: 0;
-        z-index: 100;
-        padding: 0;
-    }
-    
-    .sidebar.collapse {
-        display: none;
+        transform: translateX(-100%);
+        transition: transform 0.3s ease-in-out;
     }
     
     .sidebar.show {
+        transform: translateX(0);
+    }
+    
+    .sidebar-backdrop {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 1029;
+        display: none;
+    }
+    
+    .sidebar.show ~ .sidebar-backdrop {
         display: block;
+    }
+    
+    main {
+        margin-left: 0 !important;
+        padding-top: 60px !important;
+    }
+}
+
+@media (min-width: 768px) {
+    .navbar-toggler {
+        display: none;
+    }
+    
+    .sidebar {
+        transform: none !important;
     }
 }
 </style>
 
-<!-- Toggle Button para móviles -->
-<button class="navbar-toggler position-fixed d-md-none" type="button" 
-        data-bs-toggle="collapse" data-bs-target="#sidebar" 
-        style="top: 10px; left: 10px; z-index: 101;">
-    <span class="navbar-toggler-icon"></span>
-</button>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Crear el backdrop para el sidebar
+    const backdrop = document.createElement('div');
+    backdrop.className = 'sidebar-backdrop';
+    document.body.appendChild(backdrop);
+    
+    // Obtener referencias
+    const sidebarMenu = document.getElementById('sidebarMenu');
+    const navbarToggler = document.querySelector('.navbar-toggler');
+    
+    // Función para cerrar el sidebar
+    function closeSidebar() {
+        sidebarMenu.classList.remove('show');
+        navbarToggler.classList.add('collapsed');
+        navbarToggler.setAttribute('aria-expanded', 'false');
+    }
+    
+    // Cerrar sidebar al hacer clic en el backdrop
+    backdrop.addEventListener('click', closeSidebar);
+    
+    // Cerrar sidebar al hacer clic en un enlace (en móviles)
+    const navLinks = sidebarMenu.querySelectorAll('.nav-link');
+    navLinks.forEach(link => {
+        link.addEventListener('click', function() {
+            if (window.innerWidth < 768) {
+                closeSidebar();
+            }
+        });
+    });
+    
+    // Ajustar cuando se redimensiona la ventana
+    window.addEventListener('resize', function() {
+        if (window.innerWidth >= 768) {
+            closeSidebar();
+        }
+    });
+});
+</script>
