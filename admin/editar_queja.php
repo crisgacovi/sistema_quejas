@@ -182,6 +182,26 @@ function getBadgeClass($estado) {
                                 </div>
                             </div>
 
+                            <?php if ($queja['archivo_adjunto']): ?>
+                            <h6 class="card-title mt-4">Archivo Adjunto</h6>
+                            <div class="card">
+                                <div class="card-body">
+                                    <?php
+                                    $archivo_path = "../" . $queja['archivo_adjunto'];
+                                    if (file_exists($archivo_path)): ?>
+                                        <a href="descargar_archivo.php?id=<?php echo $id; ?>" 
+                                           class="btn btn-outline-primary">
+                                            <i class="bi bi-file-earmark"></i> Descargar archivo adjunto
+                                        </a>
+                                    <?php else: ?>
+                                        <div class="alert alert-warning">
+                                            <i class="bi bi-exclamation-triangle"></i> El archivo no se encuentra disponible.
+                                        </div>
+                                    <?php endif; ?>
+                                </div>
+                            </div>
+                            <?php endif; ?>
+
                             <!-- Sección de Respuesta con Fecha -->
                             <div class="card mt-4">
                                 <div class="card-header">
@@ -211,26 +231,6 @@ function getBadgeClass($estado) {
                                     </div>
                                 </div>
                             </div>
-                            
-                            <?php if ($queja['archivo_adjunto']): ?>
-                            <h5 class="card-title mt-4">Archivo Adjunto</h5>
-                            <div class="card">
-                                <div class="card-body">
-                                    <?php
-                                    $archivo_path = "../" . $queja['archivo_adjunto'];
-                                    if (file_exists($archivo_path)): ?>
-                                        <a href="descargar_archivo.php?id=<?php echo $id; ?>" 
-                                           class="btn btn-outline-primary">
-                                            <i class="bi bi-file-earmark"></i> Descargar archivo adjunto
-                                        </a>
-                                    <?php else: ?>
-                                        <div class="alert alert-warning">
-                                            <i class="bi bi-exclamation-triangle"></i> El archivo no se encuentra disponible.
-                                        </div>
-                                    <?php endif; ?>
-                                </div>
-                            </div>
-                            <?php endif; ?>
                             
                             <div class="mt-4">
                                 <button type="submit" class="btn btn-primary">
