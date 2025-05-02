@@ -1,7 +1,7 @@
 <?php
 /**
  * Editar Queja - Sistema de Quejas
- * Última modificación: 2025-04-26 20:15:24 UTC
+ * Última modificación: 2025-04-29 03:18:11 UTC
  * @author crisgacovi
  */
 
@@ -31,10 +31,56 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         $estado = $_POST['estado'];
         $respuesta = trim($_POST['respuesta']);
         $fecha_respuesta = !empty($_POST['fecha_respuesta']) ? $_POST['fecha_respuesta'] : null;
+        $archivo_respuesta = null;
         
-        // Actualizar la queja incluyendo la respuesta y fecha
-        $stmt = $conn->prepare("UPDATE quejas SET estado = ?, respuesta = ?, fecha_respuesta = ? WHERE id = ?");
-        $stmt->bind_param("sssi", $estado, $respuesta, $fecha_respuesta, $id);
+        // Procesar el archivo de respuesta si se ha subido uno
+        if (isset($_FILES['archivo_respuesta']) && $_FILES['archivo_respuesta']['error'] === UPLOAD_ERR_OK) {
+            $archivo_info = $_FILES['archivo_respuesta'];
+            $archivo_nombre = $archivo_info['name'];
+            $archivo_tmp = $archivo_info['tmp_name'];
+            $archivo_tipo = $archivo_info['type'];
+            $archivo_tamano = $archivo_info['size'];
+            
+            // Validar el tipo de archivo
+            $tipos_permitidos = ['application/pdf', 'application/msword', 
+                               'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                               'image/jpeg', 'image/png'];
+            
+            if (!in_array($archivo_tipo, $tipos_permitidos)) {
+                throw new Exception("Tipo de archivo no permitido. Solo se permiten archivos PDF, DOC, DOCX, JPG y PNG.");
+            }
+            
+            // Validar el tamaño del archivo (máximo 5MB)
+            if ($archivo_tamano > 5242880) {
+                throw new Exception("El archivo es demasiado grande. El tamaño máximo permitido es 5MB.");
+            }
+            
+            // Generar nombre único para el archivo
+            $extension = pathinfo($archivo_nombre, PATHINFO_EXTENSION);
+            $nombre_archivo = 'respuesta_queja_' . $id . '_' . uniqid() . '.' . $extension;
+            $ruta_destino = "../uploads/respuestas/" . $nombre_archivo;
+            
+            // Crear directorio si no existe
+            if (!is_dir("../uploads/respuestas")) {
+                mkdir("../uploads/respuestas", 0777, true);
+            }
+            
+            // Mover el archivo
+            if (move_uploaded_file($archivo_tmp, $ruta_destino)) {
+                $archivo_respuesta = "uploads/respuestas/" . $nombre_archivo;
+            } else {
+                throw new Exception("Error al guardar el archivo.");
+            }
+        }
+        
+        // Actualizar la queja incluyendo el archivo de respuesta
+        if ($archivo_respuesta) {
+            $stmt = $conn->prepare("UPDATE quejas SET estado = ?, respuesta = ?, fecha_respuesta = ?, archivo_respuesta = ? WHERE id = ?");
+            $stmt->bind_param("ssssi", $estado, $respuesta, $fecha_respuesta, $archivo_respuesta, $id);
+        } else {
+            $stmt = $conn->prepare("UPDATE quejas SET estado = ?, respuesta = ?, fecha_respuesta = ? WHERE id = ?");
+            $stmt->bind_param("sssi", $estado, $respuesta, $fecha_respuesta, $id);
+        }
         
         if ($stmt->execute()) {
             $success = true;
@@ -129,7 +175,10 @@ function getBadgeClass($estado) {
 
                 <div class="card">
                     <div class="card-body">
-                        <form action="editar_queja.php?id=<?php echo $id; ?>" method="POST" id="quejaForm">
+                        <form action="editar_queja.php?id=<?php echo $id; ?>" 
+                              method="POST" 
+                              id="quejaForm"
+                              enctype="multipart/form-data">
                             <div class="row">
                                 <div class="col-md-6">
                                     <h5 class="card-title">Información del Paciente</h5>
@@ -182,26 +231,6 @@ function getBadgeClass($estado) {
                                 </div>
                             </div>
 
-                            <?php if ($queja['archivo_adjunto']): ?>
-                            <h6 class="card-title mt-4">Archivo Adjunto</h6>
-                            <div class="card">
-                                <div class="card-body">
-                                    <?php
-                                    $archivo_path = "../" . $queja['archivo_adjunto'];
-                                    if (file_exists($archivo_path)): ?>
-                                        <a href="descargar_archivo.php?id=<?php echo $id; ?>" 
-                                           class="btn btn-outline-primary">
-                                            <i class="bi bi-file-earmark"></i> Descargar archivo adjunto
-                                        </a>
-                                    <?php else: ?>
-                                        <div class="alert alert-warning">
-                                            <i class="bi bi-exclamation-triangle"></i> El archivo no se encuentra disponible.
-                                        </div>
-                                    <?php endif; ?>
-                                </div>
-                            </div>
-                            <?php endif; ?>
-
                             <!-- Sección de Respuesta con Fecha -->
                             <div class="card mt-4">
                                 <div class="card-header">
@@ -229,6 +258,37 @@ function getBadgeClass($estado) {
                                             ?></textarea>
                                         </div>
                                     </div>
+
+                                    <!-- Campo de archivo -->
+                                    <div class="row">
+                                        <div class="col-12">
+                                            <label for="archivo_respuesta" class="form-label">
+                                                Adjuntar archivo de respuesta 
+                                                <small class="text-muted">(PDF, JPG, PNG - Máx. 5MB)</small>
+                                            </label>
+                                            <input type="file" 
+                                                   class="form-control" 
+                                                   id="archivo_respuesta" 
+                                                   name="archivo_respuesta"
+                                                   accept=".pdf,.jpg,.jpeg,.png">
+                                        </div>
+                                    </div>
+
+                                    <!-- Mostrar archivo de respuesta actual si existe -->
+                                    <?php if (!empty($queja['archivo_respuesta'])): ?>
+                                    <div class="row mt-3">
+                                        <div class="col-12">
+                                            <div class="alert alert-info">
+                                                <i class="bi bi-paperclip"></i> Archivo de respuesta actual:
+                                                <a href="../<?php echo htmlspecialchars($queja['archivo_respuesta']); ?>" 
+                                                   target="_blank" 
+                                                   class="alert-link">
+                                                    Ver archivo
+                                                </a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <?php endif; ?>
                                 </div>
                             </div>
                             
@@ -249,12 +309,35 @@ function getBadgeClass($estado) {
     document.addEventListener('DOMContentLoaded', function() {
         const fechaRespuesta = document.getElementById('fecha_respuesta');
         const respuestaTextarea = document.getElementById('respuesta');
+        const archivoRespuesta = document.getElementById('archivo_respuesta');
         const today = new Date().toISOString().split('T')[0];
         
         // Establecer fecha máxima como hoy
         fechaRespuesta.max = today;
         
-        // Validar que si hay respuesta, debe haber fecha
+        // Validar archivo
+        archivoRespuesta.addEventListener('change', function() {
+            if (this.files[0]) {
+                // Validar tamaño (5MB)
+                if (this.files[0].size > 5242880) {
+                    alert('El archivo es demasiado grande. El tamaño máximo permitido es 5MB.');
+                    this.value = '';
+                    return false;
+                }
+                
+                // Validar tipo
+                const tiposPermitidos = ['application/pdf', 'application/msword', 
+                                       'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                                       'image/jpeg', 'image/png'];
+                if (!tiposPermitidos.includes(this.files[0].type)) {
+                    alert('Tipo de archivo no permitido. Solo se permiten archivos PDF, DOC, DOCX, JPG y PNG.');
+                    this.value = '';
+                    return false;
+                }
+            }
+        });
+        
+        // Validar formulario
         document.getElementById('quejaForm').addEventListener('submit', function(e) {
             const respuestaTexto = respuestaTextarea.value.trim();
             const fecha = fechaRespuesta.value;

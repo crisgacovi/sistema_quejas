@@ -154,7 +154,7 @@ try {
                             <?php if (!empty($queja['archivo_adjunto'])): ?>
                                 <h5 class="card-title mt-4">Archivo Adjunto</h5>
                                 <div class="card">
-                                    <div class="card-body">
+                                    <div class="alert alert-info">
                                         <?php
                                         $archivo_path = dirname(__FILE__) . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . $queja['archivo_adjunto'];
                                         if (file_exists($archivo_path)): ?>
