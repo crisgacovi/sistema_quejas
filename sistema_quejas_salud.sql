@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Servidor: 127.0.0.1
--- Tiempo de generación: 27-04-2025 a las 04:37:29
+-- Tiempo de generación: 02-05-2025 a las 05:00:01
 -- Versión del servidor: 10.4.27-MariaDB
 -- Versión de PHP: 7.4.33
 
@@ -106,6 +106,7 @@ CREATE TABLE `quejas` (
   `tipo_queja_id` int(11) NOT NULL,
   `descripcion` text NOT NULL,
   `respuesta` text DEFAULT NULL,
+  `archivo_respuesta` varchar(255) DEFAULT NULL,
   `fecha_respuesta` date DEFAULT NULL,
   `fecha_creacion` timestamp NOT NULL DEFAULT current_timestamp(),
   `estado` enum('Pendiente','En Proceso','Resuelto','Cerrado') DEFAULT 'Pendiente',
@@ -116,13 +117,14 @@ CREATE TABLE `quejas` (
 -- Volcado de datos para la tabla `quejas`
 --
 
-INSERT INTO `quejas` (`id`, `nombre_paciente`, `documento_identidad`, `email`, `telefono`, `ciudad_id`, `eps_id`, `tipo_queja_id`, `descripcion`, `respuesta`, `fecha_respuesta`, `fecha_creacion`, `estado`, `archivo_adjunto`) VALUES
-(4, 'Mariana Higuera', '1053256123', 'marianah@gmail.com', '3105359552', 20, 2, 2, 'Había fallo en el sistema y no me atendieron', NULL, NULL, '2025-04-22 04:18:58', 'Pendiente', NULL),
-(12, 'Fabian Valencia', '74568258', 'valencia@yahoo.es', '3147892541', 14, 3, 10, 'Error en asignación de cita', NULL, NULL, '2025-04-24 15:18:30', 'Pendiente', 'uploads/680a5646bec98.jpg'),
-(13, 'Jose Coronado', '4288526', 'josegabriel@hotmail.com', '3105359552', 16, 3, 7, 'Sistema de citas fuera de funcionamiento', NULL, NULL, '2025-04-25 20:36:53', 'Pendiente', 'uploads/680bf26557418.jpeg'),
-(14, 'Cristian Coronado', '74374584', 'crisgacovi@hotmail.com', '3133832499', 20, 6, 9, 'Mucha documentación', NULL, NULL, '2025-04-26 03:50:33', 'Pendiente', 'uploads/680c58092d008.jpg'),
-(15, 'Julio Mahecha', '4288355', 'mahecha@gmail.com', '3147892541', 18, 9, 3, 'Personal no sabe atender público', '', NULL, '2025-04-26 04:01:13', 'Pendiente', 'uploads/680c5a89767fc.pdf'),
-(16, 'Fernando Espitia', '10491593578', 'fernanda@yahoo.es', '3214567896', 19, 2, 5, 'Medicamentos en caducidad', '', NULL, '2025-04-26 04:26:24', 'Pendiente', 'uploads/680c6070be38f.pdf');
+INSERT INTO `quejas` (`id`, `nombre_paciente`, `documento_identidad`, `email`, `telefono`, `ciudad_id`, `eps_id`, `tipo_queja_id`, `descripcion`, `respuesta`, `archivo_respuesta`, `fecha_respuesta`, `fecha_creacion`, `estado`, `archivo_adjunto`) VALUES
+(4, 'Mariana Higuera', '1053256123', 'marianah@gmail.com', '3105359552', 20, 2, 2, 'Había fallo en el sistema y no me atendieron', NULL, NULL, NULL, '2025-04-22 04:18:58', 'Pendiente', NULL),
+(12, 'Fabian Valencia', '74568258', 'valencia@yahoo.es', '3147892541', 14, 3, 10, 'Error en asignación de cita', NULL, NULL, NULL, '2025-04-24 15:18:30', 'Pendiente', 'uploads/680a5646bec98.jpg'),
+(13, 'Jose Coronado', '4288526', 'josegabriel@hotmail.com', '3105359552', 16, 3, 7, 'Sistema de citas fuera de funcionamiento', NULL, NULL, NULL, '2025-04-25 20:36:53', 'Pendiente', 'uploads/680bf26557418.jpeg'),
+(14, 'Cristian Coronado', '74374584', 'crisgacovi@hotmail.com', '3133832499', 20, 6, 9, 'Mucha documentación', NULL, NULL, NULL, '2025-04-26 03:50:33', 'Pendiente', 'uploads/680c58092d008.jpg'),
+(15, 'Julio Mahecha', '4288355', 'mahecha@gmail.com', '3147892541', 18, 9, 3, 'Personal no sabe atender público', '', NULL, NULL, '2025-04-26 04:01:13', 'Pendiente', 'uploads/680c5a89767fc.pdf'),
+(16, 'Fernando Espitia', '10491593578', 'fernanda@yahoo.es', '3214567896', 19, 2, 5, 'Medicamentos en caducidad', 'Se hizo revisión de inventario de farmacia', 'uploads/respuestas/respuesta_queja_16_68142cc4b4551.jpg', '2025-05-01', '2025-04-26 04:26:24', 'Resuelto', 'uploads/680c6070be38f.pdf'),
+(18, 'Eduard escamilla', '42885620', 'eduard@hotmail.com', '3123890970', 19, 2, 1, 'La enfermera no me atendió', 'Se informo al jefe', 'uploads/respuestas/respuesta_queja_18_20250502_043742_68142ff61e469.pdf', '2025-05-01', '2025-04-29 00:26:48', 'Resuelto', 'uploads/68101cc881444.jpg');
 
 -- --------------------------------------------------------
 
@@ -178,8 +180,8 @@ CREATE TABLE `usuarios` (
 --
 
 INSERT INTO `usuarios` (`id`, `username`, `password`, `nombre_completo`, `email`, `role`, `estado`, `ultimo_login`, `fecha_creacion`, `fecha_actualizacion`) VALUES
-(1, 'admin', '$2y$10$ul0SaUFvkl3W8X/Ftn1yBe9ygpOGKE1ZEc/cdwDUfh8aVi6BvC0Uq', 'Administrador del Sistema', 'admin@sistema.com', 'admin', 1, '2025-04-26 21:13:09', '2025-04-23 21:10:28', '2025-04-27 02:13:09'),
-(2, 'editor', '$2y$10$H2HBFAnfN2.56/08Ad6L3uA1cX.PlSfSbukYusfgLg4qRROybHc9y', 'Editor del Sistema', 'editor@sistema.com', 'editor', 1, '2025-04-26 15:27:42', '2025-04-23 21:10:28', '2025-04-26 20:27:42');
+(1, 'admin', '$2y$10$ul0SaUFvkl3W8X/Ftn1yBe9ygpOGKE1ZEc/cdwDUfh8aVi6BvC0Uq', 'Administrador del Sistema', 'admin@sistema.com', 'admin', 1, '2025-05-01 21:10:57', '2025-04-23 21:10:28', '2025-05-02 02:10:57'),
+(2, 'editor', '$2y$10$H2HBFAnfN2.56/08Ad6L3uA1cX.PlSfSbukYusfgLg4qRROybHc9y', 'Editor del Sistema', 'editor@sistema.com', 'editor', 1, '2025-04-28 19:41:39', '2025-04-23 21:10:28', '2025-04-29 00:41:39');
 
 --
 -- Índices para tablas volcadas
@@ -244,7 +246,7 @@ ALTER TABLE `eps`
 -- AUTO_INCREMENT de la tabla `quejas`
 --
 ALTER TABLE `quejas`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=18;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=19;
 
 --
 -- AUTO_INCREMENT de la tabla `tipos_queja`
