@@ -214,7 +214,6 @@ function getBadgeClass($estado) {
                                                 <option value="Pendiente" <?php echo $queja['estado'] === 'Pendiente' ? 'selected' : ''; ?>>Pendiente</option>
                                                 <option value="En Proceso" <?php echo $queja['estado'] === 'En Proceso' ? 'selected' : ''; ?>>En Proceso</option>
                                                 <option value="Resuelto" <?php echo $queja['estado'] === 'Resuelto' ? 'selected' : ''; ?>>Resuelto</option>
-                                                <option value="Cerrado" <?php echo $queja['estado'] === 'Cerrado' ? 'selected' : ''; ?>>Cerrado</option>
                                             </select>
                                         </dd>
                                         
