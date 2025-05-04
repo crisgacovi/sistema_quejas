@@ -2,7 +2,7 @@
 if (!defined('IN_ADMIN')) {
     exit;
 }
-// Removida la función isAdmin() para evitar redeclaración
+
 ?>
 
 <!-- Botón del menú hamburguesa -->
@@ -21,7 +21,7 @@ if (!defined('IN_ADMIN')) {
     <div class="position-sticky pt-3">
         <!-- Logo y nombre del sistema -->
         <div class="text-center mb-4">
-            <img src="../img/logo.png" alt="Logo" class="img-fluid mb-3" style="max-width: 100px;">
+            <img src="../assets/img/logo.png" alt="Logo" class="img-fluid mb-3" style="max-width: 100px;">
             <h6 class="sidebar-heading px-3 mb-1">Sistema de Quejas</h6>
         </div>
 

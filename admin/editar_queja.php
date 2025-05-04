@@ -252,7 +252,7 @@ function getBadgeClass($estado) {
                                             <textarea class="form-control" 
                                                       id="respuesta"
                                                       name="respuesta" 
-                                                      rows="5" 
+                                                      rows="3" 
                                                       placeholder="Escriba aquí la respuesta a la queja..."><?php 
                                                 echo htmlspecialchars($queja['respuesta'] ?? ''); 
                                             ?></textarea>
