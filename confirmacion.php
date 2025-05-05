@@ -1,6 +1,6 @@
 <?php 
 // confirmacion.php 
-require_once "config.php"; 
+require_once "config/config.php"; 
 
 $id = isset($_GET['id']) ? (int)$_GET['id'] : 0; 
 $mensaje = "Su queja ha sido registrada correctamente."; 

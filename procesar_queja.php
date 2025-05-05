@@ -2,7 +2,7 @@
 // procesar_queja.php - Procesa el envío del formulario
 
 // Incluir archivo de configuración
-require_once "config.php";
+require_once "config/config.php";
 
 // Verificar si el formulario fue enviado
 if ($_SERVER["REQUEST_METHOD"] == "POST") {

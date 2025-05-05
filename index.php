@@ -1,6 +1,6 @@
 <?php
 // index.php - Formulario de registro de quejas
-require_once "config.php";
+require_once "config/config.php";
 
 session_start();
 
