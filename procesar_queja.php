@@ -70,8 +70,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         if (empty($errores)) {
             // Generar nombre único para el archivo
             $extension = pathinfo($archivo_nombre, PATHINFO_EXTENSION);
-            $archivo_nuevo_nombre = uniqid() . '.' . $extension;
-            $directorio_destino = 'uploads/';
+            $archivo_nuevo_nombre = 'adjunto_queja_' . $documento . '_' . uniqid() . '.' . $extension;
+            $directorio_destino = 'uploads/adjuntos/';
             
             // Crear directorio si no existe
             if (!file_exists($directorio_destino)) {

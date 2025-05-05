@@ -84,12 +84,20 @@ if (!defined('IN_ADMIN')) {
         <hr class="my-3">
 
         <!-- Cerrar sesión -->
-        <div class="px-3">
-            <a href="logout.php" class="btn btn-outline-primary btn-sm w-100">
-                <i class="bi bi-box-arrow-right me-2"></i>
-                Cerrar sesión
-            </a>
-        </div>
+        <ul class="nav flex-column mb-2">
+                <li class="nav-item">
+                    <a class="nav-link" href="../index.php" target="_blank">
+                        <i class="bi bi-box-arrow-up-right"></i>
+                        Ver sitio público
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="logout.php">
+                        <i class="bi bi-box-arrow-right"></i>
+                        Cerrar sesión
+                    </a>
+                </li>
+            </ul>
     </div>
 </nav>
 
