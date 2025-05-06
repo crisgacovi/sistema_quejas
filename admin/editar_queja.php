@@ -16,7 +16,9 @@ if (!isset($_SESSION['admin_loggedin']) || $_SESSION['admin_loggedin'] !== true)
     exit;
 }
 
-require_once "../config.php";
+require_once "../config/config.php";
+require_once "../config/mail_config.php";
+require_once "../classes/MailHandler.php";
 
 $id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
 
@@ -73,7 +75,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             }
         }
         
-        // Actualizar la queja incluyendo el archivo de respuesta
+        // Actualizar la queja en la base de datos
         if ($archivo_respuesta) {
             $stmt = $conn->prepare("UPDATE quejas SET estado = ?, respuesta = ?, fecha_respuesta = ?, archivo_respuesta = ? WHERE id = ?");
             $stmt->bind_param("ssssi", $estado, $respuesta, $fecha_respuesta, $archivo_respuesta, $id);
@@ -83,10 +85,38 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         }
         
         if ($stmt->execute()) {
-            $success = true;
-            $mensaje = "Queja actualizada exitosamente.";
-        } else {
-            throw new Exception("Error al actualizar la queja: " . $stmt->error);
+            // Si el estado es "Resuelto", enviar correo de notificación
+            if ($estado === 'Resuelto') {
+                // Obtener información del querellante
+                $stmt = $conn->prepare("SELECT nombre_paciente, email FROM quejas WHERE id = ?");
+                $stmt->bind_param("i", $id);
+                $stmt->execute();
+                $result = $stmt->get_result();
+                
+                if ($row = $result->fetch_assoc()) {
+                    try {
+                        $mailHandler = new MailHandler();
+                        $mailHandler->enviarNotificacionResolucion(
+                            $row['email'],
+                            $row['nombre_paciente'],
+                            $id,
+                            $respuesta,
+                            $archivo_respuesta
+                        );
+                        
+                        $_SESSION['success_message'] = "La queja ha sido actualizada y se ha enviado la notificación por correo.";
+                    } catch (Exception $e) {
+                        // Si falla el envío del correo, registrar el error pero no impedir la actualización
+                        error_log("Error al enviar notificación para la queja #$id: " . $e->getMessage());
+                        $_SESSION['warning_message'] = "La queja ha sido actualizada pero hubo un problema al enviar la notificación por correo.";
+                    }
+                }
+            } else {
+                $_SESSION['success_message'] = "La queja ha sido actualizada exitosamente.";
+            }
+            
+            header("location: quejas.php");
+            exit;
         }
     } catch (Exception $e) {
         $error = $e->getMessage();

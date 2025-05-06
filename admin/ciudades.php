@@ -16,7 +16,7 @@ if (!isset($_SESSION['admin_loggedin']) || $_SESSION['admin_loggedin'] !== true)
     exit;
 }
 
-require_once "../config.php";
+require_once "../config/config.php";
 
 // Procesar formulario de creación/edición
 if ($_SERVER["REQUEST_METHOD"] == "POST") {

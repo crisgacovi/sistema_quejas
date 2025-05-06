@@ -16,7 +16,7 @@ if (!isset($_SESSION['admin_loggedin']) || $_SESSION['admin_loggedin'] !== true)
     exit;
 }
 
-require_once "../config.php";
+require_once "../config/config.php";
 
 $id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
 

@@ -15,7 +15,7 @@ if (isset($_SESSION['admin_loggedin']) && $_SESSION['admin_loggedin'] === true) 
 }
 
 // Incluir archivo de configuración
-require_once "../config.php";
+require_once "../config/config.php";
 
 // Definir variables
 $username = $password = "";
