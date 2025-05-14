@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Servidor: 127.0.0.1
--- Tiempo de generación: 09-05-2025 a las 05:35:29
+-- Tiempo de generación: 14-05-2025 a las 04:02:09
 -- Versión del servidor: 10.4.27-MariaDB
 -- Versión de PHP: 7.4.33
 
@@ -133,7 +133,11 @@ INSERT INTO `quejas` (`id`, `nombre_paciente`, `documento_identidad`, `email`, `
 (26, 'Luis Coronado', '24202569', 'crisgacovi@gmail.com', '3112589647', 16, 2, 4, 'No se entregaron los medicamentos recetados', 'Se reporto a farmacia para que revise inventario', 'uploads/respuestas/respuesta_queja_26_681aed8698173.pdf', '2025-05-07', '2025-05-07 05:19:00', 'Resuelto', 'uploads/adjuntos/adjunto_queja_24202569_681aed43eefa2.pdf', 0),
 (27, 'Alexander Rojas', '105578925', 'crisgacovi@yahoo.com', '3115987538', 19, 8, 5, 'Medicamentos me causaron otros problemas', 'Se notificó a médico ante jefe', 'uploads/respuestas/respuesta_queja_27_681aefe92e310.pdf', '2025-05-07', '2025-05-07 05:29:04', 'Resuelto', 'uploads/adjuntos/adjunto_queja_105578925_681aefa02f8b5.jpg', 0),
 (28, 'Carolina Sierra', '123456789', 'crisgacovi@hotmail.com', '7351085', 11, 7, 3, 'Médicos no atienden amablemente al usuario', 'Se anotó en hoja de vida', 'uploads/respuestas/respuesta_queja_28_681c228a50e24.jpg', '2025-05-07', '2025-05-08 03:17:27', 'Resuelto', 'uploads/adjuntos/adjunto_queja_123456789_681c2247a69bb.pdf', 1),
-(29, 'Elber Salas', '42586413', 'crisgacovi@gmail.com', '3115329552', 14, 4, 9, 'Mucho papeleo', 'Se están racionalizando trámites', 'uploads/respuestas/respuesta_queja_29_681c28c2743cd.jpeg', '2025-05-07', '2025-05-08 03:44:02', 'Resuelto', 'uploads/adjuntos/adjunto_queja_42586413_681c28823da03.pdf', 0);
+(29, 'Elber Salas', '42586413', 'crisgacovi@gmail.com', '3115329552', 14, 4, 9, 'Mucho papeleo', 'Se están racionalizando trámites', 'uploads/respuestas/respuesta_queja_29_681c28c2743cd.jpeg', '2025-05-07', '2025-05-08 03:44:02', 'Resuelto', 'uploads/adjuntos/adjunto_queja_42586413_681c28823da03.pdf', 0),
+(30, 'Eduard Escamilla', '4288599', 'eduescami@hotmail.com', '3103279906', 19, 3, 3, 'Los médicos dan el diagnóstico de mala manera', 'Se notificó a gerente para que tome la medidas correspondientes', 'uploads/respuestas/respuesta_queja_30_6822637d6a585.pdf', '2025-05-12', '2025-05-12 21:08:07', 'Resuelto', 'uploads/adjuntos/adjunto_queja_4288599_68226337199ee.jpg', 1),
+(31, 'Astrid Parra', '23984011', 'auditariagaudi2025@gmail.com', '', 12, 5, 12, 'Solicitud generación cita medicina nutrición', 'Se asigno cita el dia tal', 'uploads/respuestas/respuesta_queja_31_682293a4d9d09.pdf', '2025-05-12', '2025-05-13 00:28:03', 'Resuelto', 'uploads/adjuntos/adjunto_queja_23984011_682292133e6b1.jpg', 1),
+(32, 'Astrid Parra', '23984011', 'auditoriagaudi@gmail.com', '3168454345', 13, 6, 2, 'No me atendieron', 'Queja remitida a eps', 'uploads/respuestas/respuesta_queja_32_682295ef75187.png', '2025-05-12', '2025-05-13 00:42:16', 'Resuelto', 'uploads/adjuntos/adjunto_queja_23984011_6822956866801.pdf', 1),
+(33, 'as', '23984011', 'auditoriagaudi2025@gmail.com', '3105359552', 20, 10, 5, 'Medicamentos incorrectos', 'Listo', 'uploads/respuestas/respuesta_queja_33_682296c24a846.png', '2025-05-12', '2025-05-13 00:47:26', 'Resuelto', 'uploads/adjuntos/adjunto_queja_23984011_6822969e64f0f.pdf', 1);
 
 -- --------------------------------------------------------
 
@@ -163,7 +167,8 @@ INSERT INTO `tipos_queja` (`id`, `nombre`, `descripcion`, `estado`) VALUES
 (8, 'Infraestructura deficiente', 'Problemas con instalaciones, equipos o condiciones sanitarias', 1),
 (9, 'Trámites excesivos', 'Procedimientos administrativos complicados o innecesarios', 1),
 (10, 'Otro', 'Otros motivos no listados anteriormente', 1),
-(11, 'Personal no disponible', 'No se cuenta con médico especialista', 1);
+(11, 'Personal no disponible', 'No se cuenta con médico especialista', 1),
+(12, 'Autorización', 'Autorización citas', 1);
 
 -- --------------------------------------------------------
 
@@ -189,8 +194,8 @@ CREATE TABLE `usuarios` (
 --
 
 INSERT INTO `usuarios` (`id`, `username`, `password`, `nombre_completo`, `email`, `role`, `estado`, `ultimo_login`, `fecha_creacion`, `fecha_actualizacion`) VALUES
-(1, 'admin', '$2y$10$ul0SaUFvkl3W8X/Ftn1yBe9ygpOGKE1ZEc/cdwDUfh8aVi6BvC0Uq', 'Administrador del Sistema', 'admin@sistema.com', 'admin', 1, '2025-05-08 21:02:43', '2025-04-23 21:10:28', '2025-05-09 02:02:43'),
-(2, 'editor', '$2y$10$H2HBFAnfN2.56/08Ad6L3uA1cX.PlSfSbukYusfgLg4qRROybHc9y', 'Editor del Sistema', 'editor@sistema.com', 'editor', 1, '2025-05-07 23:20:54', '2025-04-23 21:10:28', '2025-05-08 04:20:54');
+(1, 'admin', '$2y$10$ul0SaUFvkl3W8X/Ftn1yBe9ygpOGKE1ZEc/cdwDUfh8aVi6BvC0Uq', 'Administrador del Sistema', 'admin@sistema.com', 'admin', 1, '2025-05-13 20:42:42', '2025-04-23 21:10:28', '2025-05-14 01:42:42'),
+(2, 'editor', '$2y$10$H2HBFAnfN2.56/08Ad6L3uA1cX.PlSfSbukYusfgLg4qRROybHc9y', 'Editor del Sistema', 'editor@sistema.com', 'editor', 1, '2025-05-12 19:53:47', '2025-04-23 21:10:28', '2025-05-13 00:53:47');
 
 --
 -- Índices para tablas volcadas
@@ -255,13 +260,13 @@ ALTER TABLE `eps`
 -- AUTO_INCREMENT de la tabla `quejas`
 --
 ALTER TABLE `quejas`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=30;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=34;
 
 --
 -- AUTO_INCREMENT de la tabla `tipos_queja`
 --
 ALTER TABLE `tipos_queja`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=12;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=13;
 
 --
 -- AUTO_INCREMENT de la tabla `usuarios`
