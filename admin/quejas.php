@@ -77,11 +77,11 @@ if (isset($_POST['generar_reporte'])) {
     if (empty($fecha_inicio) || empty($fecha_fin)) {
         $error = "Por favor seleccione ambas fechas para generar el reporte.";
     } else {
-        // Consulta para el reporte incluyendo fecha_respuesta y email_enviado
+        // Consulta para el reporte incluyendo fecha_respuesta
         $sql = "SELECT q.id, q.fecha_creacion, q.nombre_paciente, q.documento_identidad, 
                        q.email, q.telefono, c.nombre AS ciudad_nombre, 
                        e.nombre AS eps_nombre, t.nombre AS tipo_queja_nombre, 
-                       q.descripcion, q.respuesta, q.fecha_respuesta, q.estado, q.email_enviado
+                       q.descripcion, q.respuesta, q.fecha_respuesta, q.estado
                 FROM quejas q
                 JOIN ciudades c ON q.ciudad_id = c.id
                 JOIN eps e ON q.eps_id = e.id
@@ -101,13 +101,76 @@ if (isset($_POST['generar_reporte'])) {
             // Configurar headers para descarga de Excel
             header("Content-Type: application/vnd.ms-excel; charset=UTF-8");
             header("Content-Disposition: attachment; filename=\"$filename\"");
+            header("Cache-Control: no-cache");
+            header("Pragma: no-cache");
             
-            // Crear archivo Excel
-            echo "\xEF\xBB\xBF"; // BOM para UTF-8
+            // Escribir BOM UTF-8
+            echo chr(0xEF) . chr(0xBB) . chr(0xBF);
+            
+            // Crear el archivo Excel usando HTML
             echo "<table border='1'>";
-            // ... [resto del código del reporte Excel sin cambios]
+            
+            // Encabezados
+            echo "<tr style='background-color: #4CAF50; color: white; font-weight: bold;'>";
+            echo "<td>ID</td>";
+            echo "<td>Fecha Creación</td>";
+            echo "<td>Paciente</td>";
+            echo "<td>Documento</td>";
+            echo "<td>Email</td>";
+            echo "<td>Teléfono</td>";
+            echo "<td>Ciudad</td>";
+            echo "<td>EPS</td>";
+            echo "<td>Tipo de Queja</td>";
+            echo "<td>Descripción</td>";
+            echo "<td>Respuesta</td>";
+            echo "<td>Fecha Respuesta</td>";
+            echo "<td>Estado</td>";
+            echo "</tr>";
+            
+            // Datos
+            while ($row = $result->fetch_assoc()) {
+                echo "<tr>";
+                echo "<td style='mso-number-format:\"\\@\";'>" . $row['id'] . "</td>";
+                echo "<td>" . date('d/m/Y H:i', strtotime($row['fecha_creacion'])) . "</td>";
+                echo "<td>" . htmlspecialchars($row['nombre_paciente']) . "</td>";
+                echo "<td style='mso-number-format:\"\\@\";'>" . htmlspecialchars($row['documento_identidad']) . "</td>";
+                echo "<td>" . htmlspecialchars($row['email']) . "</td>";
+                echo "<td style='mso-number-format:\"\\@\";'>" . htmlspecialchars($row['telefono']) . "</td>";
+                echo "<td>" . htmlspecialchars($row['ciudad_nombre']) . "</td>";
+                echo "<td>" . htmlspecialchars($row['eps_nombre']) . "</td>";
+                echo "<td>" . htmlspecialchars($row['tipo_queja_nombre']) . "</td>";
+                echo "<td style='white-space: pre-wrap;'>" . htmlspecialchars($row['descripcion']) . "</td>";
+                echo "<td style='white-space: pre-wrap;'>" . htmlspecialchars($row['respuesta']) . "</td>";
+                echo "<td>" . ($row['fecha_respuesta'] ? date('d/m/Y', strtotime($row['fecha_respuesta'])) : '') . "</td>";
+                echo "<td>" . htmlspecialchars($row['estado']) . "</td>";
+                echo "</tr>";
+            }
+            
+            echo "</table>";
+            exit;
+        } else {
+            $error = "No se encontraron quejas en el período seleccionado.";
         }
     }
+}
+
+// Obtener lista de quejas para la tabla principal con paginación
+try {
+    $sql = "SELECT q.*, c.nombre AS ciudad_nombre, e.nombre AS eps_nombre, 
+            t.nombre AS tipo_queja_nombre, q.fecha_creacion
+            FROM quejas q
+            JOIN ciudades c ON q.ciudad_id = c.id
+            JOIN eps e ON q.eps_id = e.id
+            JOIN tipos_queja t ON q.tipo_queja_id = t.id
+            ORDER BY q.fecha_creacion DESC
+            LIMIT ? OFFSET ?";
+            
+    $stmt = $conn->prepare($sql);
+    $stmt->bind_param("ii", $quejas_por_pagina, $offset);
+    $stmt->execute();
+    $result = $stmt->get_result();
+} catch (Exception $e) {
+    $error = $e->getMessage();
 }
 ?>
 
