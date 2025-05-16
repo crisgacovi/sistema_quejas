@@ -145,15 +145,19 @@ try {
                                 </thead>
                                 <tbody>
                                     <?php
-                                    // Consultar las últimas 5 quejas
+                                    // Consultar las últimas 5 quejas, filtrando por ciudad si es consultor_ciudad
                                     $sql = "SELECT q.id, q.fecha_creacion, q.nombre_paciente, 
                                                 e.nombre as eps_nombre, 
                                                 t.nombre as tipo_queja_nombre, 
                                                 q.estado
                                         FROM quejas q
                                         LEFT JOIN eps e ON q.eps_id = e.id
-                                        LEFT JOIN tipos_queja t ON q.tipo_queja_id = t.id
-                                        ORDER BY q.fecha_creacion DESC
+                                        LEFT JOIN tipos_queja t ON q.tipo_queja_id = t.id";
+                                    if (isset($_SESSION['admin_role']) && $_SESSION['admin_role'] === 'consultor_ciudad') {
+                                        $ciudad_id = (int)$_SESSION['ciudad_id'];
+                                        $sql .= " WHERE q.ciudad_id = $ciudad_id";
+                                    }
+                                    $sql .= " ORDER BY q.fecha_creacion DESC
                                         LIMIT 5";
 
                                     $result = $conn->query($sql);
