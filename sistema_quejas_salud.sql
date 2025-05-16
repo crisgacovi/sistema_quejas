@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Servidor: 127.0.0.1
--- Tiempo de generación: 14-05-2025 a las 04:02:09
+-- Tiempo de generación: 16-05-2025 a las 02:51:28
 -- Versión del servidor: 10.4.27-MariaDB
 -- Versión de PHP: 7.4.33
 
@@ -69,6 +69,7 @@ INSERT INTO `ciudades` (`id`, `nombre`, `departamento`, `estado`) VALUES
 CREATE TABLE `eps` (
   `id` int(11) NOT NULL,
   `nombre` varchar(100) NOT NULL,
+  `email` varchar(100) DEFAULT NULL,
   `estado` int(10) NOT NULL DEFAULT 1
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
@@ -76,18 +77,19 @@ CREATE TABLE `eps` (
 -- Volcado de datos para la tabla `eps`
 --
 
-INSERT INTO `eps` (`id`, `nombre`, `estado`) VALUES
-(1, 'Nueva EPS', 1),
-(2, 'Sura EPS', 1),
-(3, 'Sanitas', 1),
-(4, 'Compensar', 1),
-(5, 'Salud Total', 1),
-(6, 'Famisanar', 1),
-(7, 'Coosalud', 1),
-(8, 'Mutual SER', 1),
-(9, 'Comfenalco Valle', 1),
-(10, 'Emssanar', 1),
-(11, 'Caprecom', 1);
+INSERT INTO `eps` (`id`, `nombre`, `email`, `estado`) VALUES
+(1, 'Nueva EPS', NULL, 1),
+(2, 'Sura EPS', NULL, 1),
+(3, 'Sanitas', NULL, 1),
+(4, 'Compensar', NULL, 1),
+(5, 'Salud Total', NULL, 1),
+(6, 'Famisanar', NULL, 1),
+(7, 'Coosalud', NULL, 1),
+(8, 'Mutual SER', NULL, 1),
+(9, 'Comfenalco Valle', NULL, 1),
+(10, 'Emssanar', NULL, 1),
+(11, 'Caprecom', NULL, 1),
+(12, 'Comfamiliar Huila', 'comfamiliarhuila@gmail.com', 1);
 
 -- --------------------------------------------------------
 
@@ -137,7 +139,9 @@ INSERT INTO `quejas` (`id`, `nombre_paciente`, `documento_identidad`, `email`, `
 (30, 'Eduard Escamilla', '4288599', 'eduescami@hotmail.com', '3103279906', 19, 3, 3, 'Los médicos dan el diagnóstico de mala manera', 'Se notificó a gerente para que tome la medidas correspondientes', 'uploads/respuestas/respuesta_queja_30_6822637d6a585.pdf', '2025-05-12', '2025-05-12 21:08:07', 'Resuelto', 'uploads/adjuntos/adjunto_queja_4288599_68226337199ee.jpg', 1),
 (31, 'Astrid Parra', '23984011', 'auditariagaudi2025@gmail.com', '', 12, 5, 12, 'Solicitud generación cita medicina nutrición', 'Se asigno cita el dia tal', 'uploads/respuestas/respuesta_queja_31_682293a4d9d09.pdf', '2025-05-12', '2025-05-13 00:28:03', 'Resuelto', 'uploads/adjuntos/adjunto_queja_23984011_682292133e6b1.jpg', 1),
 (32, 'Astrid Parra', '23984011', 'auditoriagaudi@gmail.com', '3168454345', 13, 6, 2, 'No me atendieron', 'Queja remitida a eps', 'uploads/respuestas/respuesta_queja_32_682295ef75187.png', '2025-05-12', '2025-05-13 00:42:16', 'Resuelto', 'uploads/adjuntos/adjunto_queja_23984011_6822956866801.pdf', 1),
-(33, 'as', '23984011', 'auditoriagaudi2025@gmail.com', '3105359552', 20, 10, 5, 'Medicamentos incorrectos', 'Listo', 'uploads/respuestas/respuesta_queja_33_682296c24a846.png', '2025-05-12', '2025-05-13 00:47:26', 'Resuelto', 'uploads/adjuntos/adjunto_queja_23984011_6822969e64f0f.pdf', 1);
+(33, 'as', '23984011', 'auditoriagaudi2025@gmail.com', '3105359552', 20, 10, 5, 'Medicamentos incorrectos', 'Listo', 'uploads/respuestas/respuesta_queja_33_682296c24a846.png', '2025-05-12', '2025-05-13 00:47:26', 'Resuelto', 'uploads/adjuntos/adjunto_queja_23984011_6822969e64f0f.pdf', 1),
+(34, 'Jose Coronado', '23984011', 'crisgacovi@hotmail.com', '3142880713', 3, 6, 9, 'exceso tramites', NULL, NULL, NULL, '2025-05-14 04:15:00', 'Pendiente', NULL, 0),
+(35, 'Paula Baron', '24201598', 'crisgacovi@gmail.com', '3142880713', 12, 4, 3, 'mala atencion', 'se notifico a gerente', NULL, '2025-05-13', '2025-05-14 04:15:41', 'Resuelto', NULL, 1);
 
 -- --------------------------------------------------------
 
@@ -182,7 +186,7 @@ CREATE TABLE `usuarios` (
   `password` varchar(255) NOT NULL,
   `nombre_completo` varchar(100) NOT NULL,
   `email` varchar(100) NOT NULL,
-  `role` enum('admin','editor') NOT NULL DEFAULT 'editor',
+  `role` enum('admin','editor','consultor_ciudad') NOT NULL DEFAULT 'editor',
   `estado` tinyint(1) NOT NULL DEFAULT 1,
   `ultimo_login` datetime DEFAULT NULL,
   `fecha_creacion` timestamp NOT NULL DEFAULT current_timestamp(),
@@ -194,8 +198,29 @@ CREATE TABLE `usuarios` (
 --
 
 INSERT INTO `usuarios` (`id`, `username`, `password`, `nombre_completo`, `email`, `role`, `estado`, `ultimo_login`, `fecha_creacion`, `fecha_actualizacion`) VALUES
-(1, 'admin', '$2y$10$ul0SaUFvkl3W8X/Ftn1yBe9ygpOGKE1ZEc/cdwDUfh8aVi6BvC0Uq', 'Administrador del Sistema', 'admin@sistema.com', 'admin', 1, '2025-05-13 20:42:42', '2025-04-23 21:10:28', '2025-05-14 01:42:42'),
-(2, 'editor', '$2y$10$H2HBFAnfN2.56/08Ad6L3uA1cX.PlSfSbukYusfgLg4qRROybHc9y', 'Editor del Sistema', 'editor@sistema.com', 'editor', 1, '2025-05-12 19:53:47', '2025-04-23 21:10:28', '2025-05-13 00:53:47');
+(1, 'admin', '$2y$10$ul0SaUFvkl3W8X/Ftn1yBe9ygpOGKE1ZEc/cdwDUfh8aVi6BvC0Uq', 'Administrador del Sistema', 'admin@sistema.com', 'admin', 1, '2025-05-15 19:15:27', '2025-04-23 21:10:28', '2025-05-16 00:15:27'),
+(2, 'editor', '$2y$10$H2HBFAnfN2.56/08Ad6L3uA1cX.PlSfSbukYusfgLg4qRROybHc9y', 'Editor del Sistema', 'editor@sistema.com', 'editor', 1, '2025-05-12 19:53:47', '2025-04-23 21:10:28', '2025-05-13 00:53:47'),
+(3, 'sisbentuta', '$2y$10$xxzXi351OatnUuBLeZYxdOtYP6u01y2zQbUP2V6N0kab5C1txEU9u', 'Consultor Tuta', 'sisben@tuta-boyaca.gov.co', 'consultor_ciudad', 1, '2025-05-15 19:18:54', '2025-05-14 03:54:58', '2025-05-16 00:18:54');
+
+-- --------------------------------------------------------
+
+--
+-- Estructura de tabla para la tabla `usuario_ciudad`
+--
+
+CREATE TABLE `usuario_ciudad` (
+  `id` int(11) NOT NULL,
+  `usuario_id` int(11) NOT NULL,
+  `ciudad_id` int(11) NOT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Volcado de datos para la tabla `usuario_ciudad`
+--
+
+INSERT INTO `usuario_ciudad` (`id`, `usuario_id`, `ciudad_id`, `created_at`) VALUES
+(3, 3, 12, '2025-05-14 03:55:52');
 
 --
 -- Índices para tablas volcadas
@@ -241,6 +266,14 @@ ALTER TABLE `usuarios`
   ADD KEY `idx_estado` (`estado`);
 
 --
+-- Indices de la tabla `usuario_ciudad`
+--
+ALTER TABLE `usuario_ciudad`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `unique_usuario_ciudad` (`usuario_id`,`ciudad_id`),
+  ADD KEY `ciudad_id` (`ciudad_id`);
+
+--
 -- AUTO_INCREMENT de las tablas volcadas
 --
 
@@ -254,13 +287,13 @@ ALTER TABLE `ciudades`
 -- AUTO_INCREMENT de la tabla `eps`
 --
 ALTER TABLE `eps`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=12;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=13;
 
 --
 -- AUTO_INCREMENT de la tabla `quejas`
 --
 ALTER TABLE `quejas`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=34;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=36;
 
 --
 -- AUTO_INCREMENT de la tabla `tipos_queja`
@@ -272,7 +305,13 @@ ALTER TABLE `tipos_queja`
 -- AUTO_INCREMENT de la tabla `usuarios`
 --
 ALTER TABLE `usuarios`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+
+--
+-- AUTO_INCREMENT de la tabla `usuario_ciudad`
+--
+ALTER TABLE `usuario_ciudad`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
 
 --
 -- Restricciones para tablas volcadas
@@ -285,6 +324,13 @@ ALTER TABLE `quejas`
   ADD CONSTRAINT `quejas_ibfk_1` FOREIGN KEY (`ciudad_id`) REFERENCES `ciudades` (`id`),
   ADD CONSTRAINT `quejas_ibfk_2` FOREIGN KEY (`eps_id`) REFERENCES `eps` (`id`),
   ADD CONSTRAINT `quejas_ibfk_3` FOREIGN KEY (`tipo_queja_id`) REFERENCES `tipos_queja` (`id`);
+
+--
+-- Filtros para la tabla `usuario_ciudad`
+--
+ALTER TABLE `usuario_ciudad`
+  ADD CONSTRAINT `usuario_ciudad_ibfk_1` FOREIGN KEY (`usuario_id`) REFERENCES `usuarios` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `usuario_ciudad_ibfk_2` FOREIGN KEY (`ciudad_id`) REFERENCES `ciudades` (`id`) ON DELETE CASCADE;
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;

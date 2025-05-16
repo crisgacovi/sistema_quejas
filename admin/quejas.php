@@ -1,7 +1,7 @@
 <?php
 /**
  * Gestión de Quejas - Sistema de Quejas
- * Última modificación: 2025-05-08 04:09:09 UTC
+ * Última modificación: 2025-05-14 03:48:02 UTC
  * @author crisgacovi
  */
 
@@ -42,6 +42,11 @@ try {
                   JOIN tipos_queja t ON q.tipo_queja_id = t.id
                   WHERE 1=1";
     
+    // Filtrar por ciudad si es consultor_ciudad
+    if ($_SESSION['admin_role'] === 'consultor_ciudad') {
+        $sql_total .= " AND q.ciudad_id = " . (int)$_SESSION['ciudad_id'];
+    }
+    
     if (isset($_GET['buscar']) && !empty($_GET['buscar'])) {
         $buscar = '%' . $conn->real_escape_string($_GET['buscar']) . '%';
         $sql_total .= " AND (q.id LIKE ? OR 
@@ -70,24 +75,32 @@ try {
 
 // Procesar la generación del reporte Excel si se solicita
 if (isset($_POST['generar_reporte'])) {
-    $fecha_inicio = $_POST['fecha_inicio'];
-    $fecha_fin = $_POST['fecha_fin'];
-    
-    // Validar fechas
-    if (empty($fecha_inicio) || empty($fecha_fin)) {
-        $error = "Por favor seleccione ambas fechas para generar el reporte.";
-    } else {
-        // Consulta para el reporte incluyendo fecha_respuesta
+    try {
+        $fecha_inicio = $_POST['fecha_inicio'];
+        $fecha_fin = $_POST['fecha_fin'];
+        
+        // Validar fechas
+        if (empty($fecha_inicio) || empty($fecha_fin)) {
+            throw new Exception("Por favor seleccione ambas fechas para generar el reporte.");
+        }
+
+        // Consulta para el reporte
         $sql = "SELECT q.id, q.fecha_creacion, q.nombre_paciente, q.documento_identidad, 
                        q.email, q.telefono, c.nombre AS ciudad_nombre, 
                        e.nombre AS eps_nombre, t.nombre AS tipo_queja_nombre, 
-                       q.descripcion, q.respuesta, q.fecha_respuesta, q.estado
+                       q.descripcion, q.respuesta, q.fecha_respuesta, q.estado, q.email_enviado
                 FROM quejas q
                 JOIN ciudades c ON q.ciudad_id = c.id
                 JOIN eps e ON q.eps_id = e.id
                 JOIN tipos_queja t ON q.tipo_queja_id = t.id
-                WHERE DATE(q.fecha_creacion) BETWEEN ? AND ?
-                ORDER BY q.fecha_creacion DESC";
+                WHERE DATE(q.fecha_creacion) BETWEEN ? AND ?";
+
+        // Filtrar por ciudad si es consultor_ciudad
+        if ($_SESSION['admin_role'] === 'consultor_ciudad') {
+            $sql .= " AND q.ciudad_id = " . (int)$_SESSION['ciudad_id'];
+        }
+
+        $sql .= " ORDER BY q.fecha_creacion DESC";
         
         $stmt = $conn->prepare($sql);
         $stmt->bind_param("ss", $fecha_inicio, $fecha_fin);
@@ -95,82 +108,52 @@ if (isset($_POST['generar_reporte'])) {
         $result = $stmt->get_result();
         
         if ($result->num_rows > 0) {
-            // Nombre del archivo
             $filename = "reporte_quejas_" . date('Y-m-d') . ".xls";
             
-            // Configurar headers para descarga de Excel
             header("Content-Type: application/vnd.ms-excel; charset=UTF-8");
             header("Content-Disposition: attachment; filename=\"$filename\"");
-            header("Cache-Control: no-cache");
-            header("Pragma: no-cache");
             
-            // Escribir BOM UTF-8
-            echo chr(0xEF) . chr(0xBB) . chr(0xBF);
-            
-            // Crear el archivo Excel usando HTML
+            echo "\xEF\xBB\xBF"; // BOM para UTF-8
             echo "<table border='1'>";
-            
-            // Encabezados
-            echo "<tr style='background-color: #4CAF50; color: white; font-weight: bold;'>";
-            echo "<td>ID</td>";
-            echo "<td>Fecha Creación</td>";
-            echo "<td>Paciente</td>";
-            echo "<td>Documento</td>";
-            echo "<td>Email</td>";
-            echo "<td>Teléfono</td>";
-            echo "<td>Ciudad</td>";
-            echo "<td>EPS</td>";
-            echo "<td>Tipo de Queja</td>";
-            echo "<td>Descripción</td>";
-            echo "<td>Respuesta</td>";
-            echo "<td>Fecha Respuesta</td>";
-            echo "<td>Estado</td>";
+            echo "<tr>";
+            echo "<th>ID</th>";
+            echo "<th>Fecha Creación</th>";
+            echo "<th>Paciente</th>";
+            echo "<th>Documento</th>";
+            echo "<th>Email</th>";
+            echo "<th>Teléfono</th>";
+            echo "<th>Ciudad</th>";
+            echo "<th>EPS</th>";
+            echo "<th>Tipo de Queja</th>";
+            echo "<th>Descripción</th>";
+            echo "<th>Respuesta</th>";
+            echo "<th>Fecha Respuesta</th>";
+            echo "<th>Estado</th>";
             echo "</tr>";
             
-            // Datos
             while ($row = $result->fetch_assoc()) {
                 echo "<tr>";
-                echo "<td style='mso-number-format:\"\\@\";'>" . $row['id'] . "</td>";
+                echo "<td>" . $row['id'] . "</td>";
                 echo "<td>" . date('d/m/Y H:i', strtotime($row['fecha_creacion'])) . "</td>";
-                echo "<td>" . htmlspecialchars($row['nombre_paciente']) . "</td>";
-                echo "<td style='mso-number-format:\"\\@\";'>" . htmlspecialchars($row['documento_identidad']) . "</td>";
-                echo "<td>" . htmlspecialchars($row['email']) . "</td>";
-                echo "<td style='mso-number-format:\"\\@\";'>" . htmlspecialchars($row['telefono']) . "</td>";
-                echo "<td>" . htmlspecialchars($row['ciudad_nombre']) . "</td>";
-                echo "<td>" . htmlspecialchars($row['eps_nombre']) . "</td>";
-                echo "<td>" . htmlspecialchars($row['tipo_queja_nombre']) . "</td>";
-                echo "<td style='white-space: pre-wrap;'>" . htmlspecialchars($row['descripcion']) . "</td>";
-                echo "<td style='white-space: pre-wrap;'>" . htmlspecialchars($row['respuesta']) . "</td>";
+                echo "<td>" . $row['nombre_paciente'] . "</td>";
+                echo "<td>" . $row['documento_identidad'] . "</td>";
+                echo "<td>" . $row['email'] . "</td>";
+                echo "<td>" . $row['telefono'] . "</td>";
+                echo "<td>" . $row['ciudad_nombre'] . "</td>";
+                echo "<td>" . $row['eps_nombre'] . "</td>";
+                echo "<td>" . $row['tipo_queja_nombre'] . "</td>";
+                echo "<td>" . $row['descripcion'] . "</td>";
+                echo "<td>" . $row['respuesta'] . "</td>";
                 echo "<td>" . ($row['fecha_respuesta'] ? date('d/m/Y', strtotime($row['fecha_respuesta'])) : '') . "</td>";
-                echo "<td>" . htmlspecialchars($row['estado']) . "</td>";
+                echo "<td>" . $row['estado'] . "</td>";
                 echo "</tr>";
             }
-            
             echo "</table>";
             exit;
-        } else {
-            $error = "No se encontraron quejas en el período seleccionado.";
         }
+    } catch (Exception $e) {
+        $error = $e->getMessage();
     }
-}
-
-// Obtener lista de quejas para la tabla principal con paginación
-try {
-    $sql = "SELECT q.*, c.nombre AS ciudad_nombre, e.nombre AS eps_nombre, 
-            t.nombre AS tipo_queja_nombre, q.fecha_creacion
-            FROM quejas q
-            JOIN ciudades c ON q.ciudad_id = c.id
-            JOIN eps e ON q.eps_id = e.id
-            JOIN tipos_queja t ON q.tipo_queja_id = t.id
-            ORDER BY q.fecha_creacion DESC
-            LIMIT ? OFFSET ?";
-            
-    $stmt = $conn->prepare($sql);
-    $stmt->bind_param("ii", $quejas_por_pagina, $offset);
-    $stmt->execute();
-    $result = $stmt->get_result();
-} catch (Exception $e) {
-    $error = $e->getMessage();
 }
 ?>
 
@@ -194,6 +177,12 @@ try {
             <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
                 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
                     <h1 class="h2">Gestión de Quejas</h1>
+                    <?php if ($_SESSION['admin_role'] === 'consultor_ciudad'): ?>
+                        <span class="badge bg-info fs-6">
+                            <i class="bi bi-geo-alt"></i> 
+                            <?php echo htmlspecialchars($_SESSION['ciudad_nombre']); ?>
+                        </span>
+                    <?php endif; ?>
                 </div>
 
                 <?php if (isset($error)): ?>
@@ -281,6 +270,11 @@ try {
                                        JOIN tipos_queja t ON q.tipo_queja_id = t.id
                                        WHERE 1=1";
 
+                                // Filtrar por ciudad si es consultor_ciudad
+                                if ($_SESSION['admin_role'] === 'consultor_ciudad') {
+                                    $sql .= " AND q.ciudad_id = " . (int)$_SESSION['ciudad_id'];
+                                }
+
                                 if (isset($_GET['buscar']) && !empty($_GET['buscar'])) {
                                     $buscar = '%' . $conn->real_escape_string($_GET['buscar']) . '%';
                                     $sql .= " AND (q.id LIKE ? OR 
@@ -320,32 +314,34 @@ try {
                                             <?php echo $queja['estado']; ?>
                                         </span>
                                     </td>
-                                    <td class="text-start">
-                                        <a href="ver_queja.php?id=<?php echo $queja['id']; ?>" 
-                                           class="btn btn-primary btn-sm" title="Ver Detalles">
-                                            <i class="bi bi-eye"></i>
-                                        </a>
-                                        <a href="editar_queja.php?id=<?php echo $queja['id']; ?>" 
-                                           class="btn btn-warning btn-sm" title="Editar">
-                                            <i class="bi bi-pencil"></i>
-                                        </a>
-                                        <?php if ($queja['estado'] === 'Resuelto' && !empty($queja['respuesta'])): ?>
-                                            <button type="button" 
-                                                    class="btn <?php echo $queja['email_enviado'] ? 'btn-success' : 'btn-info'; ?> btn-sm enviar-email" 
-                                                    data-queja-id="<?php echo $queja['id']; ?>"
-                                                    title="<?php echo $queja['email_enviado'] ? 'Email enviado' : 'Enviar Email de Respuesta'; ?>"
-                                                    <?php echo $queja['email_enviado'] ? 'disabled' : ''; ?>>
-                                                <i class="bi <?php echo $queja['email_enviado'] ? 'bi-envelope-check-fill' : 'bi-envelope'; ?>"></i>
-                                            </button>
-                                        <?php endif; ?>
-                                        <?php if ($_SESSION['admin_role'] === 'admin'): ?>
-                                            <a href="eliminar_queja.php?id=<?php echo $queja['id']; ?>" 
-                                               class="btn btn-danger btn-sm"
-                                               onclick="return confirm('¿Está seguro de eliminar esta queja?')"
-                                               title="Eliminar">
-                                                <i class="bi bi-trash"></i>
+                                    <td class="text-end">
+                                        <div class="btn-group">
+                                            <a href="ver_queja.php?id=<?php echo $queja['id']; ?>" 
+                                               class="btn btn-primary btn-sm" title="Ver Detalles">
+                                                <i class="bi bi-eye"></i>
                                             </a>
-                                        <?php endif; ?>
+                                            <a href="editar_queja.php?id=<?php echo $queja['id']; ?>" 
+                                               class="btn btn-warning btn-sm" title="Editar">
+                                                <i class="bi bi-pencil"></i>
+                                            </a>
+                                            <?php if ($queja['estado'] === 'Resuelto' && !empty($queja['respuesta'])): ?>
+                                                <button type="button" 
+                                                        class="btn <?php echo $queja['email_enviado'] ? 'btn-success' : 'btn-info'; ?> btn-sm enviar-email" 
+                                                        data-queja-id="<?php echo $queja['id']; ?>"
+                                                        title="<?php echo $queja['email_enviado'] ? 'Email enviado' : 'Enviar Email de Respuesta'; ?>"
+                                                        <?php echo $queja['email_enviado'] ? 'disabled' : ''; ?>>
+                                                    <i class="bi <?php echo $queja['email_enviado'] ? 'bi-envelope-check-fill' : 'bi-envelope'; ?>"></i>
+                                                </button>
+                                            <?php endif; ?>
+                                            <?php if ($_SESSION['admin_role'] === 'admin'): ?>
+                                                <a href="eliminar_queja.php?id=<?php echo $queja['id']; ?>" 
+                                                   class="btn btn-danger btn-sm"
+                                                   onclick="return confirm('¿Está seguro de eliminar esta queja?')"
+                                                   title="Eliminar">
+                                                    <i class="bi bi-trash"></i>
+                                                </a>
+                                            <?php endif; ?>
+                                        </div>
                                     </td>
                                 </tr>
                             <?php 
@@ -360,7 +356,7 @@ try {
 
                 <!-- Paginación -->
                 <?php if ($total_paginas > 1): ?>
-                <nav aria-label="Navegación de páginas">
+                <nav aria-label="Navegación de páginas" class="mt-4">
                     <ul class="pagination justify-content-center">
                         <li class="page-item <?php echo $pagina_actual <= 1 ? 'disabled' : ''; ?>">
                             <a class="page-link" href="?pagina=<?php echo $pagina_actual - 1; ?><?php echo isset($_GET['buscar']) ? '&buscar='.urlencode($_GET['buscar']) : ''; ?>">Anterior</a>
@@ -418,7 +414,7 @@ try {
             });
         });
 
-        // Manejar envío de email con nuevo comportamiento del icono y persistencia
+        // Manejar envío de email
         document.getElementById('enviarEmailBtn').addEventListener('click', function() {
             const form = document.getElementById('emailForm');
             const formData = new FormData(form);

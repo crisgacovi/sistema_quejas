@@ -1,7 +1,7 @@
 <?php
 /**
  * Login de Administración - Sistema de Quejas
- * Última modificación: 2025-05-14 03:08:55 UTC
+ * Última modificación: 2025-04-23 21:00:23 UTC
  * @author crisgacovi
  */
 
@@ -32,13 +32,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         $username = trim($_POST["username"]);
         $password = trim($_POST["password"]);
 
-        // Preparar la consulta incluyendo información de ciudad para consultores
-        $sql = "SELECT u.id, u.username, u.password, u.nombre_completo, u.role, u.estado,
-                       uc.ciudad_id, c.nombre as ciudad_nombre 
-                FROM usuarios u 
-                LEFT JOIN usuario_ciudad uc ON u.id = uc.usuario_id 
-                LEFT JOIN ciudades c ON uc.ciudad_id = c.id 
-                WHERE u.username = ?";
+        // Preparar la consulta
+        $sql = "SELECT id, username, password, nombre_completo, role, estado FROM usuarios WHERE username = ?";
         
         if ($stmt = $conn->prepare($sql)) {
             $stmt->bind_param("s", $username);
@@ -62,15 +57,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                         $_SESSION['admin_username'] = $row['username'];
                         $_SESSION['admin_nombre'] = $row['nombre_completo'];
                         $_SESSION['admin_role'] = $row['role'];
-                        
-                        // Si es consultor_ciudad, guardar datos de la ciudad
-                        if ($row['role'] === 'consultor_ciudad') {
-                            if (!$row['ciudad_id']) {
-                                throw new Exception("No tiene una ciudad asignada. Contacte al administrador.");
-                            }
-                            $_SESSION['ciudad_id'] = $row['ciudad_id'];
-                            $_SESSION['ciudad_nombre'] = $row['ciudad_nombre'];
-                        }
                         
                         // Actualizar último acceso
                         $update_sql = "UPDATE usuarios SET ultimo_login = NOW() WHERE id = ?";

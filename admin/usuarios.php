@@ -1,7 +1,7 @@
 <?php
 /**
  * Gestión de Usuarios - Sistema de Quejas
- * Última modificación: 2025-04-23 20:51:18 UTC
+ * Última modificación: 2025-05-14 03:43:42 UTC
  * @author crisgacovi
  */
 
@@ -27,6 +27,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             $email = trim($_POST['email']);
             $role = trim($_POST['role']);
             $estado = isset($_POST['estado']) ? 1 : 0;
+            $ciudad_id = ($role === 'consultor_ciudad' && isset($_POST['ciudad_id'])) ? (int)$_POST['ciudad_id'] : null;
 
             // Validaciones
             if (empty($username) || empty($nombre_completo) || empty($email)) {
@@ -37,61 +38,99 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 throw new Exception("El formato del email no es válido.");
             }
 
-            if ($_POST['action'] == 'create') {
-                // Verificar si el usuario ya existe
-                $stmt = $conn->prepare("SELECT id FROM usuarios WHERE username = ? OR email = ?");
-                $stmt->bind_param("ss", $username, $email);
-                $stmt->execute();
-                if ($stmt->get_result()->num_rows > 0) {
-                    throw new Exception("El nombre de usuario o email ya está en uso.");
-                }
-
-                // Verificar que se haya proporcionado una contraseña
-                if (empty($_POST['password'])) {
-                    throw new Exception("La contraseña es requerida para nuevos usuarios.");
-                }
-
-                $password = password_hash($_POST['password'], PASSWORD_DEFAULT);
-                
-                $stmt = $conn->prepare("INSERT INTO usuarios (username, password, nombre_completo, email, role, estado) VALUES (?, ?, ?, ?, ?, ?)");
-                $stmt->bind_param("sssssi", $username, $password, $nombre_completo, $email, $role, $estado);
-                $mensaje = "Usuario creado exitosamente.";
-            } else if ($_POST['action'] == 'edit' && isset($_POST['id'])) {
-                $id = (int)$_POST['id'];
-                
-                // Verificar si el usuario existe
-                $stmt = $conn->prepare("SELECT id FROM usuarios WHERE id = ?");
-                $stmt->bind_param("i", $id);
-                $stmt->execute();
-                if ($stmt->get_result()->num_rows == 0) {
-                    throw new Exception("Usuario no encontrado.");
-                }
-
-                // Verificar duplicados excepto para el usuario actual
-                $stmt = $conn->prepare("SELECT id FROM usuarios WHERE (username = ? OR email = ?) AND id != ?");
-                $stmt->bind_param("ssi", $username, $email, $id);
-                $stmt->execute();
-                if ($stmt->get_result()->num_rows > 0) {
-                    throw new Exception("El nombre de usuario o email ya está en uso por otro usuario.");
-                }
-
-                if (!empty($_POST['password'])) {
-                    // Si se proporciona una nueva contraseña, actualizarla
-                    $password = password_hash($_POST['password'], PASSWORD_DEFAULT);
-                    $stmt = $conn->prepare("UPDATE usuarios SET username = ?, password = ?, nombre_completo = ?, email = ?, role = ?, estado = ? WHERE id = ?");
-                    $stmt->bind_param("sssssii", $username, $password, $nombre_completo, $email, $role, $estado, $id);
-                } else {
-                    // Si no hay nueva contraseña, actualizar sin cambiar la contraseña
-                    $stmt = $conn->prepare("UPDATE usuarios SET username = ?, nombre_completo = ?, email = ?, role = ?, estado = ? WHERE id = ?");
-                    $stmt->bind_param("ssssii", $username, $nombre_completo, $email, $role, $estado, $id);
-                }
-                $mensaje = "Usuario actualizado exitosamente.";
+            if ($role === 'consultor_ciudad' && empty($ciudad_id)) {
+                throw new Exception("Debe seleccionar una ciudad para el consultor.");
             }
 
-            if ($stmt->execute()) {
+            $conn->begin_transaction();
+
+            try {
+                if ($_POST['action'] == 'create') {
+                    // Verificar si el usuario ya existe
+                    $stmt = $conn->prepare("SELECT id FROM usuarios WHERE username = ? OR email = ?");
+                    $stmt->bind_param("ss", $username, $email);
+                    $stmt->execute();
+                    if ($stmt->get_result()->num_rows > 0) {
+                        throw new Exception("El nombre de usuario o email ya está en uso.");
+                    }
+
+                    // Verificar que se haya proporcionado una contraseña
+                    if (empty($_POST['password'])) {
+                        throw new Exception("La contraseña es requerida para nuevos usuarios.");
+                    }
+
+                    $password = password_hash($_POST['password'], PASSWORD_DEFAULT);
+                    
+                    $stmt = $conn->prepare("INSERT INTO usuarios (username, password, nombre_completo, email, role, estado) VALUES (?, ?, ?, ?, ?, ?)");
+                    $stmt->bind_param("sssssi", $username, $password, $nombre_completo, $email, $role, $estado);
+                    
+                    if ($stmt->execute()) {
+                        $usuario_id = $conn->insert_id;
+                        
+                        // Si es consultor_ciudad, asignar ciudad
+                        if ($role === 'consultor_ciudad' && $ciudad_id) {
+                            $stmt = $conn->prepare("INSERT INTO usuario_ciudad (usuario_id, ciudad_id) VALUES (?, ?)");
+                            $stmt->bind_param("ii", $usuario_id, $ciudad_id);
+                            $stmt->execute();
+                        }
+                        
+                        $mensaje = "Usuario creado exitosamente.";
+                    } else {
+                        throw new Exception("Error al crear el usuario.");
+                    }
+                } else if ($_POST['action'] == 'edit' && isset($_POST['id'])) {
+                    $id = (int)$_POST['id'];
+                    
+                    // Verificar si el usuario existe
+                    $stmt = $conn->prepare("SELECT id FROM usuarios WHERE id = ?");
+                    $stmt->bind_param("i", $id);
+                    $stmt->execute();
+                    if ($stmt->get_result()->num_rows == 0) {
+                        throw new Exception("Usuario no encontrado.");
+                    }
+
+                    // Verificar duplicados excepto para el usuario actual
+                    $stmt = $conn->prepare("SELECT id FROM usuarios WHERE (username = ? OR email = ?) AND id != ?");
+                    $stmt->bind_param("ssi", $username, $email, $id);
+                    $stmt->execute();
+                    if ($stmt->get_result()->num_rows > 0) {
+                        throw new Exception("El nombre de usuario o email ya está en uso por otro usuario.");
+                    }
+
+                    if (!empty($_POST['password'])) {
+                        // Si se proporciona una nueva contraseña, actualizarla
+                        $password = password_hash($_POST['password'], PASSWORD_DEFAULT);
+                        $stmt = $conn->prepare("UPDATE usuarios SET username = ?, password = ?, nombre_completo = ?, email = ?, role = ?, estado = ? WHERE id = ?");
+                        $stmt->bind_param("sssssii", $username, $password, $nombre_completo, $email, $role, $estado, $id);
+                    } else {
+                        // Si no hay nueva contraseña, actualizar sin cambiar la contraseña
+                        $stmt = $conn->prepare("UPDATE usuarios SET username = ?, nombre_completo = ?, email = ?, role = ?, estado = ? WHERE id = ?");
+                        $stmt->bind_param("ssssii", $username, $nombre_completo, $email, $role, $estado, $id);
+                    }
+                    
+                    if ($stmt->execute()) {
+                        // Actualizar asignación de ciudad
+                        $stmt = $conn->prepare("DELETE FROM usuario_ciudad WHERE usuario_id = ?");
+                        $stmt->bind_param("i", $id);
+                        $stmt->execute();
+
+                        if ($role === 'consultor_ciudad' && $ciudad_id) {
+                            $stmt = $conn->prepare("INSERT INTO usuario_ciudad (usuario_id, ciudad_id) VALUES (?, ?)");
+                            $stmt->bind_param("ii", $id, $ciudad_id);
+                            $stmt->execute();
+                        }
+                        
+                        $mensaje = "Usuario actualizado exitosamente.";
+                    } else {
+                        throw new Exception("Error al actualizar el usuario.");
+                    }
+                }
+
+                $conn->commit();
                 $success = true;
-            } else {
-                throw new Exception("Error al procesar la operación: " . $stmt->error);
+            } catch (Exception $e) {
+                $conn->rollback();
+                throw $e;
             }
         }
     } catch (Exception $e) {
@@ -120,23 +159,49 @@ if (isset($_GET['delete'])) {
             throw new Exception("No se puede eliminar el último usuario administrador.");
         }
 
-        $stmt = $conn->prepare("DELETE FROM usuarios WHERE id = ?");
-        $stmt->bind_param("i", $id);
-        
-        if ($stmt->execute()) {
-            $success = true;
-            $mensaje = "Usuario eliminado exitosamente.";
-        } else {
-            throw new Exception("Error al eliminar el usuario: " . $stmt->error);
+        $conn->begin_transaction();
+
+        try {
+            // Eliminar asignaciones de ciudad primero
+            $stmt = $conn->prepare("DELETE FROM usuario_ciudad WHERE usuario_id = ?");
+            $stmt->bind_param("i", $id);
+            $stmt->execute();
+
+            // Luego eliminar el usuario
+            $stmt = $conn->prepare("DELETE FROM usuarios WHERE id = ?");
+            $stmt->bind_param("i", $id);
+            
+            if ($stmt->execute()) {
+                $conn->commit();
+                $success = true;
+                $mensaje = "Usuario eliminado exitosamente.";
+            } else {
+                throw new Exception("Error al eliminar el usuario.");
+            }
+        } catch (Exception $e) {
+            $conn->rollback();
+            throw $e;
         }
     } catch (Exception $e) {
         $error = $e->getMessage();
     }
 }
 
-// Obtener lista de usuarios
+// Obtener lista de usuarios con sus ciudades asignadas
 try {
-    $result = $conn->query("SELECT * FROM usuarios ORDER BY username");
+    $sql = "SELECT u.*, uc.ciudad_id, c.nombre as ciudad_nombre 
+            FROM usuarios u 
+            LEFT JOIN usuario_ciudad uc ON u.id = uc.usuario_id 
+            LEFT JOIN ciudades c ON uc.ciudad_id = c.id 
+            ORDER BY u.username";
+    $result = $conn->query($sql);
+} catch (Exception $e) {
+    $error = $e->getMessage();
+}
+
+// Obtener lista de ciudades para el formulario
+try {
+    $ciudades = $conn->query("SELECT id, nombre FROM ciudades WHERE estado = 1 ORDER BY nombre");
 } catch (Exception $e) {
     $error = $e->getMessage();
 }
@@ -192,6 +257,7 @@ try {
                                         <th>Nombre</th>
                                         <th>Email</th>
                                         <th>Rol</th>
+                                        <th>Ciudad Asignada</th>
                                         <th>Estado</th>
                                         <th>Último acceso</th>
                                         <th>Acciones</th>
@@ -206,9 +272,16 @@ try {
                                                 <td><?php echo htmlspecialchars($row['nombre_completo']); ?></td>
                                                 <td><?php echo htmlspecialchars($row['email']); ?></td>
                                                 <td>
-                                                    <span class="badge <?php echo $row['role'] === 'admin' ? 'bg-danger' : 'bg-primary'; ?>">
+                                                    <span class="badge <?php echo $row['role'] === 'admin' ? 'bg-danger' : ($row['role'] === 'consultor_ciudad' ? 'bg-info' : 'bg-primary'); ?>">
                                                         <?php echo ucfirst($row['role']); ?>
                                                     </span>
+                                                </td>
+                                                <td>
+                                                    <?php if ($row['role'] === 'consultor_ciudad'): ?>
+                                                        <?php echo htmlspecialchars($row['ciudad_nombre'] ?? 'Sin asignar'); ?>
+                                                    <?php else: ?>
+                                                        -
+                                                    <?php endif; ?>
                                                 </td>
                                                 <td>
                                                     <span class="badge <?php echo $row['estado'] ? 'bg-success' : 'bg-danger'; ?>">
@@ -229,6 +302,7 @@ try {
                                                                 data-nombre="<?php echo htmlspecialchars($row['nombre_completo']); ?>"
                                                                 data-email="<?php echo htmlspecialchars($row['email']); ?>"
                                                                 data-role="<?php echo $row['role']; ?>"
+                                                                data-ciudad-id="<?php echo $row['ciudad_id']; ?>"
                                                                 data-estado="<?php echo $row['estado']; ?>">
                                                             <i class="bi bi-pencil"></i>
                                                         </button>
@@ -245,7 +319,7 @@ try {
                                         <?php endwhile; ?>
                                     <?php else: ?>
                                         <tr>
-                                            <td colspan="8" class="text-center py-4">
+                                            <td colspan="9" class="text-center py-4">
                                                 <div class="text-muted">
                                                     <i class="bi bi-inbox display-4 d-block mb-3"></i>
                                                     <p>No hay usuarios registrados.</p>
@@ -298,15 +372,28 @@ try {
 
                         <div class="mb-3">
                             <label for="role" class="form-label">Rol</label>
-                            <select class="form-select" id="role" name="role" required>
+                            <select class="form-select" id="role" name="role" required onchange="toggleCiudadSelect()">
                                 <option value="editor">Editor</option>
                                 <option value="admin">Administrador</option>
+                                <option value="consultor_ciudad">Consultor Ciudad</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-3" id="ciudadDiv" style="display:none;">
+                            <label for="ciudad_id" class="form-label">Ciudad Asignada</label>
+                            <select class="form-select" id="ciudad_id" name="ciudad_id">
+                                <option value="">Seleccione una ciudad</option>
+                                <?php while ($ciudad = $ciudades->fetch_assoc()): ?>
+                                    <option value="<?php echo $ciudad['id']; ?>">
+                                        <?php echo htmlspecialchars($ciudad['nombre']); ?>
+                                    </option>
+                                <?php endwhile; ?>
                             </select>
                         </div>
                         
                         <div class="mb-3">
                             <div class="form-check form-switch">
-                                <input class="form-check-input" type="checkbox" id="estado" name="estado" value="1">
+                                <input class="form-check-input" type="checkbox" id="estado" name="estado" value="1" checked>
                                 <label class="form-check-label" for="estado">
                                     Usuario activo
                                 </label>
@@ -324,6 +411,21 @@ try {
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+    function toggleCiudadSelect() {
+        const roleSelect = document.getElementById('role');
+        const ciudadDiv = document.getElementById('ciudadDiv');
+        const ciudadSelect = document.getElementById('ciudad_id');
+        
+        if (roleSelect.value === 'consultor_ciudad') {
+            ciudadDiv.style.display = 'block';
+            ciudadSelect.required = true;
+        } else {
+            ciudadDiv.style.display = 'none';
+            ciudadSelect.required = false;
+            ciudadSelect.value = '';
+        }
+    }
+
     document.addEventListener('DOMContentLoaded', function() {
         const usuarioModal = document.getElementById('usuarioModal');
         if (usuarioModal) {
@@ -342,6 +444,7 @@ try {
                     const nombre = button.getAttribute('data-nombre');
                     const email = button.getAttribute('data-email');
                     const role = button.getAttribute('data-role');
+                    const ciudadId = button.getAttribute('data-ciudad-id');
                     const estado = button.getAttribute('data-estado');
                     
                     modalTitle.textContent = 'Editar Usuario';
@@ -353,19 +456,22 @@ try {
                     form.querySelector('#role').value = role;
                     form.querySelector('#estado').checked = estado === '1';
                     
+                    if (role === 'consultor_ciudad') {
+                        document.getElementById('ciudadDiv').style.display = 'block';
+                        document.getElementById('ciudad_id').value = ciudadId;
+                        document.getElementById('ciudad_id').required = true;
+                    }
+                    
                     passwordField.required = false;
                     passwordHelp.style.display = 'block';
                 } else {
                     // Modo creación
                     modalTitle.textContent = 'Nuevo Usuario';
+                    form.reset();
                     form.querySelector('input[name="action"]').value = 'create';
                     form.querySelector('#usuario_id').value = '';
-                    form.querySelector('#username').value = '';
-                    form.querySelector('#password').value = '';
-                    form.querySelector('#nombre_completo').value = '';
-                    form.querySelector('#email').value = '';
-                    form.querySelector('#role').value = 'editor';
-                    form.querySelector('#estado').checked = true;
+                    document.getElementById('ciudadDiv').style.display = 'none';
+                    document.getElementById('ciudad_id').required = false;
                     
                     passwordField.required = true;
                     passwordHelp.style.display = 'none';

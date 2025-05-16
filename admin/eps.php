@@ -1,7 +1,7 @@
 <?php
 /**
  * Gestión de EPS - Sistema de Quejas
- * Última modificación: 2025-04-23 19:35:17 UTC
+ * Última modificación: 2025-05-14 04:26:05 UTC
  * @author crisgacovi
  */
 
@@ -10,9 +10,9 @@ session_start();
 // Definir constante para acceso seguro al sidebar
 define('IN_ADMIN', true);
 
-// Verificar si el usuario está autenticado
-if (!isset($_SESSION['admin_loggedin']) || $_SESSION['admin_loggedin'] !== true) {
-    header("location: login.php");
+// Verificar si el usuario está autenticado y es administrador
+if (!isset($_SESSION['admin_loggedin']) || $_SESSION['admin_loggedin'] !== true || $_SESSION['admin_role'] !== 'admin') {
+    header("location: index.php");
     exit;
 }
 
@@ -23,20 +23,42 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     try {
         if (isset($_POST['action'])) {
             $nombre = trim($_POST['nombre']);
+            $email = trim($_POST['email']);
             $estado = isset($_POST['estado']) ? 1 : 0;
 
             if (empty($nombre)) {
                 throw new Exception("El nombre de la EPS es requerido.");
             }
 
+            if (!empty($email) && !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                throw new Exception("El formato del email no es válido.");
+            }
+
             if ($_POST['action'] == 'create') {
-                $stmt = $conn->prepare("INSERT INTO eps (nombre, estado) VALUES (?, ?)");
-                $stmt->bind_param("si", $nombre, $estado);
+                // Verificar si ya existe
+                $stmt = $conn->prepare("SELECT id FROM eps WHERE nombre = ?");
+                $stmt->bind_param("s", $nombre);
+                $stmt->execute();
+                if ($stmt->get_result()->num_rows > 0) {
+                    throw new Exception("Ya existe una EPS con este nombre.");
+                }
+
+                $stmt = $conn->prepare("INSERT INTO eps (nombre, email, estado) VALUES (?, ?, ?)");
+                $stmt->bind_param("ssi", $nombre, $email, $estado);
                 $mensaje = "EPS creada exitosamente.";
             } else if ($_POST['action'] == 'edit' && isset($_POST['id'])) {
                 $id = (int)$_POST['id'];
-                $stmt = $conn->prepare("UPDATE eps SET nombre = ?, estado = ? WHERE id = ?");
-                $stmt->bind_param("sii", $nombre, $estado, $id);
+
+                // Verificar duplicados excepto para la EPS actual
+                $stmt = $conn->prepare("SELECT id FROM eps WHERE nombre = ? AND id != ?");
+                $stmt->bind_param("si", $nombre, $id);
+                $stmt->execute();
+                if ($stmt->get_result()->num_rows > 0) {
+                    throw new Exception("Ya existe otra EPS con este nombre.");
+                }
+
+                $stmt = $conn->prepare("UPDATE eps SET nombre = ?, email = ?, estado = ? WHERE id = ?");
+                $stmt->bind_param("ssii", $nombre, $email, $estado, $id);
                 $mensaje = "EPS actualizada exitosamente.";
             }
 
@@ -52,11 +74,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 }
 
 // Eliminar EPS
-if (isset($_GET['delete']) && $_SESSION['admin_role'] === 'admin') {
+if (isset($_GET['delete'])) {
     try {
         $id = (int)$_GET['delete'];
-        
-        // Verificar si la EPS está siendo utilizada
+
+        // Verificar si hay quejas asociadas
         $stmt = $conn->prepare("SELECT COUNT(*) as total FROM quejas WHERE eps_id = ?");
         $stmt->bind_param("i", $id);
         $stmt->execute();
@@ -64,7 +86,7 @@ if (isset($_GET['delete']) && $_SESSION['admin_role'] === 'admin') {
         $count = $result->fetch_assoc()['total'];
 
         if ($count > 0) {
-            throw new Exception("No se puede eliminar la EPS porque está siendo utilizada en quejas existentes.");
+            throw new Exception("No se puede eliminar la EPS porque tiene quejas asociadas.");
         }
 
         $stmt = $conn->prepare("DELETE FROM eps WHERE id = ?");
@@ -136,6 +158,7 @@ try {
                                     <tr>
                                         <th>ID</th>
                                         <th>Nombre</th>
+                                        <th>Email</th>
                                         <th>Estado</th>
                                         <th>Acciones</th>
                                     </tr>
@@ -146,6 +169,7 @@ try {
                                             <tr>
                                                 <td><?php echo $row['id']; ?></td>
                                                 <td><?php echo htmlspecialchars($row['nombre']); ?></td>
+                                                <td><?php echo htmlspecialchars($row['email'] ?? ''); ?></td>
                                                 <td>
                                                     <span class="badge <?php echo $row['estado'] ? 'bg-success' : 'bg-danger'; ?>">
                                                         <?php echo $row['estado'] ? 'Activo' : 'Inactivo'; ?>
@@ -159,23 +183,22 @@ try {
                                                                 data-bs-target="#epsModal"
                                                                 data-id="<?php echo $row['id']; ?>"
                                                                 data-nombre="<?php echo htmlspecialchars($row['nombre']); ?>"
+                                                                data-email="<?php echo htmlspecialchars($row['email'] ?? ''); ?>"
                                                                 data-estado="<?php echo $row['estado']; ?>">
                                                             <i class="bi bi-pencil"></i>
                                                         </button>
-                                                        <?php if ($_SESSION['admin_role'] === 'admin'): ?>
-                                                            <a href="eps.php?delete=<?php echo $row['id']; ?>" 
-                                                               class="btn btn-sm btn-danger"
-                                                               onclick="return confirm('¿Está seguro de que desea eliminar esta EPS?');">
-                                                                <i class="bi bi-trash"></i>
-                                                            </a>
-                                                        <?php endif; ?>
+                                                        <a href="eps.php?delete=<?php echo $row['id']; ?>" 
+                                                           class="btn btn-sm btn-danger"
+                                                           onclick="return confirm('¿Está seguro de eliminar esta EPS?');">
+                                                            <i class="bi bi-trash"></i>
+                                                        </a>
                                                     </div>
                                                 </td>
                                             </tr>
                                         <?php endwhile; ?>
                                     <?php else: ?>
                                         <tr>
-                                            <td colspan="4" class="text-center py-4">
+                                            <td colspan="5" class="text-center py-4">
                                                 <div class="text-muted">
                                                     <i class="bi bi-inbox display-4 d-block mb-3"></i>
                                                     <p>No hay EPS registradas.</p>
@@ -209,12 +232,19 @@ try {
                             <label for="nombre" class="form-label">Nombre de la EPS</label>
                             <input type="text" class="form-control" id="nombre" name="nombre" required>
                         </div>
+
+                        <div class="mb-3">
+                            <label for="email" class="form-label">Email de la EPS</label>
+                            <input type="email" class="form-control" id="email" name="email" 
+                                   placeholder="ejemplo@eps.com">
+                            <div class="form-text">Email para notificaciones de quejas.</div>
+                        </div>
                         
                         <div class="mb-3">
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" id="estado" name="estado" checked>
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="estado" name="estado" value="1" checked>
                                 <label class="form-check-label" for="estado">
-                                    Activo
+                                    EPS activa
                                 </label>
                             </div>
                         </div>
@@ -243,19 +273,21 @@ try {
                     // Modo edición
                     const id = button.getAttribute('data-id');
                     const nombre = button.getAttribute('data-nombre');
-                    const estado = button.getAttribute('data-estado') === '1';
+                    const email = button.getAttribute('data-email');
+                    const estado = button.getAttribute('data-estado');
                     
                     modalTitle.textContent = 'Editar EPS';
                     form.querySelector('input[name="action"]').value = 'edit';
                     form.querySelector('#eps_id').value = id;
                     form.querySelector('#nombre').value = nombre;
-                    form.querySelector('#estado').checked = estado;
+                    form.querySelector('#email').value = email;
+                    form.querySelector('#estado').checked = estado === '1';
                 } else {
                     // Modo creación
                     modalTitle.textContent = 'Nueva EPS';
+                    form.reset();
                     form.querySelector('input[name="action"]').value = 'create';
                     form.querySelector('#eps_id').value = '';
-                    form.querySelector('#nombre').value = '';
                     form.querySelector('#estado').checked = true;
                 }
             });

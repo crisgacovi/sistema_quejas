@@ -2,7 +2,6 @@
 if (!defined('IN_ADMIN')) {
     exit;
 }
-
 ?>
 
 <!-- Botón del menú hamburguesa -->
@@ -29,7 +28,16 @@ if (!defined('IN_ADMIN')) {
         <div class="px-3 mb-3">
             <div class="d-flex align-items-center text-dark">
                 <i class="bi bi-person-circle me-2"></i>
-                <small><?php echo htmlspecialchars($_SESSION['admin_username']); ?></small>
+                <small>
+                    <?php echo htmlspecialchars($_SESSION['admin_username']); ?>
+                    <?php if ($_SESSION['admin_role'] === 'consultor_ciudad'): ?>
+                        <br>
+                        <span class="badge bg-info">
+                            <i class="bi bi-geo-alt"></i> 
+                            <?php echo htmlspecialchars($_SESSION['ciudad_nombre']); ?>
+                        </span>
+                    <?php endif; ?>
+                </small>
             </div>
         </div>
 
@@ -85,19 +93,19 @@ if (!defined('IN_ADMIN')) {
 
         <!-- Cerrar sesión -->
         <ul class="nav flex-column mb-2">
-                <li class="nav-item">
-                    <a class="nav-link" href="../index.php" target="_blank">
-                        <i class="bi bi-box-arrow-up-right"></i>
-                        Ver sitio público
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="logout.php">
-                        <i class="bi bi-box-arrow-right"></i>
-                        Cerrar sesión
-                    </a>
-                </li>
-            </ul>
+            <li class="nav-item">
+                <a class="nav-link" href="../index.php" target="_blank">
+                    <i class="bi bi-box-arrow-up-right"></i>
+                    Ver sitio público
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="logout.php">
+                    <i class="bi bi-box-arrow-right"></i>
+                    Cerrar sesión
+                </a>
+            </li>
+        </ul>
     </div>
 </nav>
 
@@ -144,10 +152,6 @@ if (!defined('IN_ADMIN')) {
 
 .navbar-toggler:hover {
     background-color: #f8f9fa;
-}
-
-.navbar-toggler-icon {
-    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba%280, 0, 0, 0.55%29' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e");
 }
 
 @media (max-width: 767.98px) {
